@@ -2,7 +2,9 @@
 
 A very fast, simple URL shortener service using leveldb and libuv.
 
-Without any real statistical significance, here are some quick averages.
+Just for fun. Without any real statistical significance, here are 
+some quick averages. Also, Redirector uses about `400KB` of memory
+compared to Node.js' `10-15MB`.
 
 ### Redirector
 ```

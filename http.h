@@ -6,9 +6,12 @@
 #include <sstream>
 #include <iostream>
 #include <unistd.h>
+#include <functional>
 
+extern "C" {
 #include "uv.h"
 #include "http_parser.h"
+}
 
 #define MAX_WRITE_HANDLES 1000
 

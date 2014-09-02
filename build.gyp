@@ -2,13 +2,10 @@
   'includes': [ 'common.gypi' ],
   'targets': [
     {
-      'target_name': 'server',
-      'type': 'executable',
+      'target_name': 'libuv-http',
+      'type': 'none',
       'sources': [
-        'server.cc',
-      ],
-      'include_dirs': [
-        './deps/debug'
+        'http.h',
       ],
       'dependencies': [
         './deps/libuv/uv.gyp:libuv',

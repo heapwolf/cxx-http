@@ -1,7 +1,6 @@
 #ifndef __HTTP__
 #define __HTTP__
 
-#include "debug.h"
 #include "uv.h"
 #include "http_parser.h"
 

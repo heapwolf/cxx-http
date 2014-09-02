@@ -1,5 +1,5 @@
 
-all: ./build ./server
+all: ./build
 
 ./deps/gyp:
 	git clone --depth 1 https://chromium.googlesource.com/external/gyp.git ./deps/gyp
@@ -20,6 +20,5 @@ distclean:
 clean:
 	rm -rf ./build/out/Release/obj.target/server/
 	rm -f ./build/out/Release/server
-	rm -f ./server
 
 .PHONY: test

@@ -28,12 +28,12 @@ Just for fun. Without any real statistical significance, here are
 some quick averages. Also, `libuv-http` uses about `400KB` of memory
 compared to Node.js' `10-15MB`.
 
-### Redirector
+### libuv-http
 ```
 Requests per second:    16333.46 [#/sec] (mean)
 ```
 
-### Node.js
+### node.js
 ```
 Requests per second:    3366.41 [#/sec] (mean)
 ```

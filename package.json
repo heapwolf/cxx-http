@@ -4,6 +4,7 @@
   "repo": "hij1nx/libuv-http",
   "description": "A simple http server in c++ backed by libuv and http-parser.",
   "keywords": ["http", "libuv", "http-parser"],
+  "src": ["http.h"],
   "install": "make"
 }
 

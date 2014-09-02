@@ -87,10 +87,10 @@ namespace http {
       uv_tcp_init(UV_LOOP, &client->handle);
 
       // init http parser
-      http_parser_init(client->parser, HTTP_REQUEST);
+      http_parser_init(&client->parser, HTTP_REQUEST);
 
       // client reference for parser routines
-      client->parser->data = client;
+      client->parser.data = client;
 
       // client reference for handle data on requests
       client->handle.data = client;
@@ -104,7 +104,7 @@ namespace http {
         Client *client = static_cast<Client *>(tcp->data);
 
         if (nread >= 0) {
-          parsed = (ssize_t) http_parser_execute(client->parser,
+          parsed = (ssize_t) http_parser_execute(&client->parser,
                                                  &events_.settings,
                                                  buf->base,
                                                  nread);

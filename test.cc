@@ -25,6 +25,7 @@ main (void) {
     // or
     //res << std::endl;
 
+    exit(0);
   });
 
   // listen on port 8000

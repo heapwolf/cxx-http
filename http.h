@@ -140,10 +140,35 @@ namespace http {
 
   class Request {
     public:
+
+      /**
+       * Request URL
+       */
+
       string url;
+
+      /**
+       * Request HTTP method
+       */
+
       string method;
+
+      /**
+       * Request HTTP status code
+       */
+
       string status_code;
+
+      /**
+       * Request body
+       */
+
       string body;
+
+      /**
+       * Request headers map
+       */
+
       map<const string, const string> headers;
   };
 
@@ -154,19 +179,24 @@ namespace http {
    */
 
   class Client : public Request {
-
     public:
+      /**
+       * uv tcp socket handle
+       */
+
       uv_tcp_t handle;
-      http_parser *parser;
+
+      /**
+       * http parser instance
+       */
+
+      http_parser parser;
+
+      /**
+       * uv write worker
+       */
+
       uv_write_t write_req;
-
-      Client () {
-        parser = (http_parser *) malloc(sizeof(http_parser));
-      }
-
-      ~Client () {
-        free(parser);
-      }
   };
 
   /**
@@ -442,7 +472,6 @@ namespace http {
     auto *client = reinterpret_cast<Client*>(handle->data);
     free(client);
   }
-
 
 } // namespace http
 

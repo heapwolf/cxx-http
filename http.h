@@ -9,27 +9,27 @@
 #include <string>
 #include <sstream>
 #include <iostream>
-#include <vector>
+#include <map>
 
 #define MAX_WRITE_HANDLES 1000
+
+#ifndef __UV_LOOP__
+#define __UV_LOOP__
+  
+  static uv_loop_t *UV_LOOP;
+
+#endif
 
 namespace http {
 
 using namespace std;
-
-//
-// TODO
-// move these uv items into Server.
-//
-static uv_loop_t* uv_loop;
-static uv_tcp_t server;
 
 typedef struct {
   string url;
   string method;
   string status_code;
   string body;
-  vector<const string> headers;
+  map<const string, const string> headers;
 } Request;
 
 class Response : public ostream {
@@ -48,22 +48,15 @@ class Response : public ostream {
 
           string s = str();
           std::ostringstream ss;
-          ss << "HTTP/1.1 " << res->status << " OK\r\n"
+          ss << "HTTP/1.1 " << res->status << " OK\r\n";
 
-             //
-             // just hard code headers for now.
-             //
-             
-             << "Content-Type: text/plain\r\n"
-             << "Connection: keep-alive\r\n"
-             
-             //
-             // set the content length and content.
-             //
-             
-             << "Content-Length: " << s.size() << "\r\n"
-             << "\r\n"
-             << s;
+          for (auto &h: res->headers)
+            ss << h.first << ": " << h.second << "\r\n";
+
+          //
+          // set the content length and content.
+          //
+          ss << "Content-Length: " << s.size() << "\r\n\r\n" << s;
 
           s = ss.str();
 
@@ -77,7 +70,7 @@ class Response : public ostream {
     Buffer buffer;
 
   public:
-    vector<const string> headers;
+    map<const string, const string> headers;
     int status = 200;
 
     void onEnd(Callback cb) {
@@ -85,12 +78,8 @@ class Response : public ostream {
       callback = cb;
     }
 
-    bool setHeader() {
-      //
-      // TODO
-      // Put headers into a map
-      //
-      return true;
+    void setHeader(const string key, const string val) {
+      headers.insert({ key, val });
     }
 
     void setStatus(int code) {
@@ -112,17 +101,17 @@ typedef struct : Request {
   uv_write_t write_req;
 } Client;
 
-typedef struct {
-  uv_work_t request;
-  Client* client;
-  bool error;
-  string result;
-} Baton;
-
-void free_client(uv_handle_t* handle) {
+void free_client(uv_handle_t *handle) {
   auto *client = reinterpret_cast<Client*>(handle->data);
   free(client);
 }
+
+typedef struct {
+  uv_work_t request;
+  Client *client;
+  bool error;
+  string result;
+} Baton;
 
 typedef function<void (Request &req, Response &res)> Listener;
 
@@ -142,14 +131,14 @@ class HTTPEvents {
     HTTPEvents(Listener fn) {
       listener = fn;
 
-      static function<int(http_parser* parser)> on_message_complete;
-      static function<int(http_parser* parser, const char *at, size_t len)> on_url;
+      static function<int(http_parser *parser)> on_message_complete;
+      static function<int(http_parser *parser, const char *at, size_t len)> on_url;
 
       //
       // called once a connection has been made and the message is complete.
       //
       on_message_complete = 
-      [&](http_parser* parser) -> int {
+      [&](http_parser *parser) -> int {
 
         auto *client = reinterpret_cast<Client*>(parser->data);
         Request req;
@@ -169,16 +158,11 @@ class HTTPEvents {
 
           uv_write(
             &client->write_req,
-            (uv_stream_t*)&client->handle,
+            (uv_stream_t*) &client->handle,
             &resbuf,
             1,
-            [](uv_write_t* req, int status) {
+            [](uv_write_t *req, int status) {
               if (!uv_is_closing((uv_handle_t*)req->handle)) {
-                //
-                // move this out to user-space
-                //
-                // Baton *baton = static_cast<Baton *>(req->data);
-                // delete baton;
                 uv_close((uv_handle_t*) req->handle, free_client);
               }
             }
@@ -193,7 +177,7 @@ class HTTPEvents {
       // called after the url has been parsed.
       //
       settings.on_url = 
-      [](http_parser* parser, const char *at, size_t len) -> int {
+      [](http_parser *parser, const char *at, size_t len) -> int {
         
         auto *client = reinterpret_cast<Client*>(parser->data);
         
@@ -207,12 +191,12 @@ class HTTPEvents {
       // called when there are either fields or values in the request.
       //
       settings.on_header_field = 
-      [](http_parser* parser, const char* at, size_t length) -> int {
+      [](http_parser *parser, const char *at, size_t length) -> int {
         return 0;
       };
 
       settings.on_header_value = 
-      [](http_parser* parser, const char* at, size_t length) -> int {
+      [](http_parser *parser, const char *at, size_t length) -> int {
         return 0;
       };
 
@@ -220,7 +204,7 @@ class HTTPEvents {
       // called once all fields and values have been parsed.
       //
       settings.on_headers_complete = 
-      [](http_parser* parser) -> int {
+      [](http_parser *parser) -> int {
       
         auto *client = reinterpret_cast<Client*>(parser->data);
         client->method = string(http_method_str((enum http_method) parser->method));
@@ -231,7 +215,7 @@ class HTTPEvents {
       // called when there is a body for the request.
       //
       settings.on_body =
-      [](http_parser* parser, const char* at, size_t len) -> int { 
+      [](http_parser *parser, const char *at, size_t len) -> int { 
         
         auto *client = reinterpret_cast<Client*>(parser->data);
  
@@ -245,7 +229,7 @@ class HTTPEvents {
       // called after all other events.
       //
       settings.on_message_complete = 
-      [](http_parser* parser) -> int {
+      [](http_parser *parser) -> int {
         return on_message_complete(parser);
       };
     }
@@ -254,21 +238,22 @@ class HTTPEvents {
 class Server {
 
   public:
+    uv_tcp_t server;
     HTTPEvents events;
 
     //
     // called by the user when they want to start listening for
     // connections. starts the main event loop, provides parser, etc.
     //
-    int listen(const char* ip, int port) {
+    int listen(const char *ip, int port) {
 
       int cores = sysconf(_SC_NPROCESSORS_ONLN);
       char cores_string[10];
       sprintf(cores_string, "%d", cores);
       setenv("UV_THREADPOOL_SIZE", cores_string, 1);
 
-      uv_loop = uv_default_loop();
-      uv_tcp_init(uv_loop, &server);
+      UV_LOOP = uv_default_loop();
+      uv_tcp_init(UV_LOOP, &server);
 
       //
       // Not sure exactly how to use this,
@@ -281,28 +266,28 @@ class Server {
       uv_ip4_addr(ip, port, &address);
       uv_tcp_bind(&server, (const struct sockaddr*) &address, 0);
 
-      static function<void(uv_stream_t* server, int status)> on_connect;
-      static function<void(uv_stream_t* tcp, ssize_t nread, const uv_buf_t * buf)> read;
+      static function<void(uv_stream_t *server, int status)> on_connect;
+      static function<void(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf)> read;
 
       //
       // called once a connection is made.
       //
-      on_connect = [&](uv_stream_t* server_handle, int status) {
+      on_connect = [&](uv_stream_t *handle, int status) {
 
         Client *client = new Client();
 
-        uv_tcp_init(uv_loop, &client->handle);
+        uv_tcp_init(UV_LOOP, &client->handle);
         http_parser_init(&client->parser, HTTP_REQUEST);
 
         client->parser.data = client;
         client->handle.data = client;
 
-        uv_accept(server_handle, (uv_stream_t*)&client->handle);
+        uv_accept(handle, (uv_stream_t*) &client->handle);
 
         //
         // called for every read.
         //
-        read = [&](uv_stream_t* tcp, ssize_t nread, const uv_buf_t * buf) {
+        read = [&](uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf) {
 
           ssize_t parsed;
           auto *client = reinterpret_cast<Client*>(tcp->data);
@@ -329,10 +314,10 @@ class Server {
         //
         uv_read_start(
           (uv_stream_t*) &client->handle, 
-          [](uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
+          [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
             *buf = uv_buf_init((char*) malloc(suggested_size), suggested_size); 
           }, 
-          [](uv_stream_t* tcp, ssize_t nread, const uv_buf_t * buf) {
+          [](uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf) {
             read(tcp, nread, buf);
           }
         );
@@ -341,24 +326,18 @@ class Server {
       uv_listen(
         (uv_stream_t*) &server, 
         MAX_WRITE_HANDLES, 
-        [](uv_stream_t* server, int status) {
+        [](uv_stream_t *server, int status) {
           on_connect(server, status);
         }
       );
 
-      uv_run(uv_loop,UV_RUN_DEFAULT);
+      uv_run(UV_LOOP, UV_RUN_DEFAULT);
       return 0;
     }
 
     Server(Listener listener) :
       events(listener) {
 
-    }
-    ~Server() {
-      //
-      // TODO
-      // maybe free the parser instance.
-      //
     }
 };
 

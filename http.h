@@ -1,344 +1,448 @@
-#ifndef __HTTP__
-#define __HTTP__
+#ifndef HTTP_UV_H
+#define HTTP_UV_H
+
+#include <map>
+#include <string>
+#include <sstream>
+#include <iostream>
+#include <unistd.h>
 
 #include "uv.h"
 #include "http_parser.h"
 
-#include <unistd.h>
-#include <string>
-#include <sstream>
-#include <iostream>
-#include <map>
-
 #define MAX_WRITE_HANDLES 1000
 
-#ifndef __UV_LOOP__
-#define __UV_LOOP__
-  
-  static uv_loop_t *UV_LOOP;
-
+#ifndef HTTP_UV_LOOP
+#define HTTP_UV_LOOP
+static uv_loop_t *UV_LOOP;
 #endif
 
 namespace http {
 
-using namespace std;
+  using namespace std;
+  static void free_client (uv_handle_t *);
 
-typedef struct {
-  string url;
-  string method;
-  string status_code;
-  string body;
-  map<const string, const string> headers;
-} Request;
+  /**
+   * `http' api
+   */
 
-class Response : public ostream {
+  template <class Type> class Buffer;
+  template <class Type> class IStream;
+  class Response;
+  class Request;
+  class Client;
+  class Server;
 
-  private:
-    typedef function<void (string s)> Callback;
-    Callback callback;
-    bool hasCallback = false;
-    stringstream ss;
+  /**
+   * `Baton' class
+   */
 
-    class Buffer : public stringbuf {
-      public:
-        Response *res;
-        Buffer(ostream &str) {}
-        int sync () {
+  class Baton {
+    public:
+      Client *client;
+      string result;
+      uv_work_t request;
+      bool error;
+  };
 
-          string s = str();
-          std::ostringstream ss;
-          ss << "HTTP/1.1 " << res->status << " OK\r\n";
+  /**
+   * `Buffer' class
+   *
+   * Extends `std::stringbuf'
+   */
 
-          for (auto &h: res->headers)
-            ss << h.first << ": " << h.second << "\r\n";
+  template <class Type> class Buffer : public stringbuf {
 
-          //
-          // set the content length and content.
-          //
-          ss << "Content-Length: " << s.size() << "\r\n\r\n" << s;
+    friend class Request;
+    friend class Response;
 
-          s = ss.str();
+    /**
+     * Pointer to buffer stream
+     */
 
-          if (res->hasCallback) {
-            res->callback(s);
-          }
-          return 0;
-        }
-    };
+    Type *stream_;
 
-    Buffer buffer;
+    public:
 
-  public:
-    map<const string, const string> headers;
-    int status = 200;
+    /**
+     * Write callback type attached to `stream_'
+     */
 
-    void onEnd(Callback cb) {
-      hasCallback = true;
-      callback = cb;
-    }
+    typedef function<void (string s)> WriteCallback;
 
-    void setHeader(const string key, const string val) {
-      headers.insert({ key, val });
-    }
+    /**
+     * `Buffer<Type>' constructor
+     */
 
-    void setStatus(int code) {
-      status = code;
-    }
+    Buffer<Type> (ostream &str) {};
 
-    Response() :
-      ostream(&buffer), 
-      buffer(ss) {
-        buffer.res = this;
+    /**
+     * `Buffer<Type>' destructor
+     */
+
+    ~Buffer () {};
+
+    /**
+     * Implements the `std::streambuf::sync()' virtual
+     * method. Returns `0' on success, otherwise `1' on
+     * failure.
+     */
+
+    int sync () {
+      // create out stream
+      string out = str();
+
+      // write buffer stream
+      std::ostringstream buf;
+
+      // sync
+      if (1 == stream_->sync(buf, out.size())) {
+        return 1;
       }
-    ~Response() {
+
+      // concat
+      buf << out;
+
+      // write
+      out = buf.str();
+
+      // defer to write callback
+      stream_->write_(out);
+
+      return 0;
+
     }
-};
+  };
 
-typedef struct : Request {
-  uv_tcp_t handle;
-  http_parser parser;
-  uv_write_t write_req;
-} Client;
+  /**
+   * `IStream' interface
+   */
 
-void free_client(uv_handle_t *handle) {
-  auto *client = reinterpret_cast<Client*>(handle->data);
-  free(client);
-}
+  template <class Type> class IStream : virtual public ostream {
 
-typedef struct {
-  uv_work_t request;
-  Client *client;
-  bool error;
-  string result;
-} Baton;
+    protected:
 
-typedef function<void (Request &req, Response &res)> Listener;
+      /**
+       * `IStream' constructor
+       */
 
-class HTTPEvents {
+    public:
+      IStream () { };
 
-  public:
-    http_parser_settings settings;
-    Listener listener;
+      void write (string);
+      void read () {};
+      void end () {};
+  };
 
-    ssize_t exec(
-      http_parser *parser, const http_parser_settings *settings,
-      const char *data, size_t len) {
+  /**
+   * `Request' class
+   */
 
-        return (ssize_t) http_parser_execute(parser, settings, data, len);
-    }
+  class Request {
+    public:
+      string url;
+      string method;
+      string status_code;
+      string body;
+      map<const string, const string> headers;
+  };
 
-    HTTPEvents(Listener fn) {
-      listener = fn;
+  /**
+   * `Client' class
+   *
+   * Extends `http::Request'
+   */
 
-      static function<int(http_parser *parser)> on_message_complete;
-      static function<int(http_parser *parser, const char *at, size_t len)> on_url;
+  class Client : public Request {
 
-      //
-      // called once a connection has been made and the message is complete.
-      //
-      on_message_complete = 
-      [&](http_parser *parser) -> int {
+    public:
+      uv_tcp_t handle;
+      http_parser *parser;
+      uv_write_t write_req;
 
-        auto *client = reinterpret_cast<Client*>(parser->data);
-        Request req;
+      Client () {
+        parser = (http_parser *) malloc(sizeof(http_parser));
+      }
 
-        req.url = client->url;
-        req.method = client->method;
+      ~Client () {
+        free(parser);
+      }
+  };
 
-        Response res;
+  /**
+   * `Response' stream class
+   *
+   * Extends `std::ostream'
+   */
 
-        res.onEnd([&](string str) {
+  class Response : public IStream<Response> {
 
-          auto *client = reinterpret_cast<Client*>(parser->data);
+    friend class Buffer<class Response>;
 
-          uv_buf_t resbuf;
-          resbuf.base = (char *) str.c_str();
-          resbuf.len = str.size();
+    private:
 
-          uv_write(
-            &client->write_req,
-            (uv_stream_t*) &client->handle,
-            &resbuf,
-            1,
-            [](uv_write_t *req, int status) {
-              if (!uv_is_closing((uv_handle_t*)req->handle)) {
-                uv_close((uv_handle_t*) req->handle, free_client);
-              }
-            }
-          );
-        });
+      /**
+       * Response buffer
+       */
 
-        listener(req, res);
-        return 0;
-      };
+      Buffer<Response> buffer_;
 
-      //
-      // called after the url has been parsed.
-      //
-      settings.on_url = 
-      [](http_parser *parser, const char *at, size_t len) -> int {
-        
-        auto *client = reinterpret_cast<Client*>(parser->data);
-        
-        if (at && client) {
-          client->url = std::string(at, len);
-        }
-        return 0; 
-      };
+      /**
+       * `Buffer' string stream
+       */
 
-      //
-      // called when there are either fields or values in the request.
-      //
-      settings.on_header_field = 
-      [](http_parser *parser, const char *at, size_t length) -> int {
-        return 0;
-      };
+      stringstream stream_;
 
-      settings.on_header_value = 
-      [](http_parser *parser, const char *at, size_t length) -> int {
-        return 0;
-      };
+      /**
+       * Buffer write implementation
+       */
 
-      //
-      // called once all fields and values have been parsed.
-      //
-      settings.on_headers_complete = 
-      [](http_parser *parser) -> int {
-      
-        auto *client = reinterpret_cast<Client*>(parser->data);
-        client->method = string(http_method_str((enum http_method) parser->method));
-        return 0; 
-      };
+      Buffer<Response>::WriteCallback write_;
 
-      //
-      // called when there is a body for the request.
-      //
-      settings.on_body =
-      [](http_parser *parser, const char *at, size_t len) -> int { 
-        
-        auto *client = reinterpret_cast<Client*>(parser->data);
- 
-        if (at && client) {
-          client->body = std::string(at, len);
-        }
-        return 0; 
-      };
+    protected:
 
-      //
-      // called after all other events.
-      //
-      settings.on_message_complete = 
-      [](http_parser *parser) -> int {
-        return on_message_complete(parser);
-      };
-    }
-};
+      /**
+       * Stream sync interface
+       */
 
-class Server {
+      virtual int sync (ostringstream &, size_t);
 
-  public:
-    uv_tcp_t server;
-    HTTPEvents events;
+    public:
 
-    //
-    // called by the user when they want to start listening for
-    // connections. starts the main event loop, provides parser, etc.
-    //
-    int listen(const char *ip, int port) {
+      /**
+       * HTTP response status code
+       */
 
-      int cores = sysconf(_SC_NPROCESSORS_ONLN);
-      char cores_string[10];
-      sprintf(cores_string, "%d", cores);
-      setenv("UV_THREADPOOL_SIZE", cores_string, 1);
+      int statusCode = 200;
 
-      UV_LOOP = uv_default_loop();
-      uv_tcp_init(UV_LOOP, &server);
+      /**
+       * HTTP response status adjective
+       */
 
-      //
-      // Not sure exactly how to use this,
-      // after the initial timeout, it just
-      // seems to kill the server.
-      //
-      //uv_tcp_keepalive(&server,1,60);
+      string statusAdjective;
 
-      struct sockaddr_in address;
-      uv_ip4_addr(ip, port, &address);
-      uv_tcp_bind(&server, (const struct sockaddr*) &address, 0);
+      /**
+       * Key to value map of response headers
+       */
 
-      static function<void(uv_stream_t *server, int status)> on_connect;
-      static function<void(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf)> read;
+      map<const string, const string> headers;
 
-      //
-      // called once a connection is made.
-      //
-      on_connect = [&](uv_stream_t *handle, int status) {
+      /**
+       * `Buffer::WriteCallback' detect predicate
+       */
 
-        Client *client = new Client();
+      bool hasCallback = false;
 
-        uv_tcp_init(UV_LOOP, &client->handle);
-        http_parser_init(&client->parser, HTTP_REQUEST);
+      /**
+       * Sets a key value pair as a HTTP
+       * header
+       */
 
-        client->parser.data = client;
-        client->handle.data = client;
+      void setHeader (const string, const string);
 
-        uv_accept(handle, (uv_stream_t*) &client->handle);
+      /**
+       * Sets the HTTP status code
+       *
+       * @TODO - handle `statusAdjective'
+       */
 
-        //
-        // called for every read.
-        //
-        read = [&](uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf) {
+      void setStatus (int);
 
-          ssize_t parsed;
-          auto *client = reinterpret_cast<Client*>(tcp->data);
+      /**
+       * Sets a `Buffer::WriteCallback write_' routine for when
+       * the response has been sent
+       */
 
-          if (nread >= 0) {
-            parsed = events.exec(&client->parser, &events.settings, buf->base, nread);
+      void onEnd (Buffer<Response>::WriteCallback);
 
-            if (parsed < nread) {
-              uv_close((uv_handle_t*) &client->handle, free_client);
-            }
-          } 
-          else {
+      /**
+       * Write to buffer stream
+       */
 
-            if (nread != UV_EOF) {
-              // debug error
-            }
-            uv_close((uv_handle_t*) &client->handle, free_client);
-          }
-          free(buf->base);
+      void write (string);
+
+      /**
+       * End write stream
+       */
+
+      void end ();
+
+      /**
+       * `Response' constructor
+       *
+       * Initializes super class and `Buffer buffer_'
+       * instance with `stringstream stream_'
+       */
+
+      Response () : IStream(), ostream(&buffer_), buffer_(stream_) {
+        buffer_.stream_ = this;
+      }
+
+      /**
+       * `Response' destructor
+       */
+
+      ~Response() { };
+  };
+
+  /**
+   * `Events' class
+   */
+
+  class Events {
+
+    public:
+
+      /**
+       * `Listener' callback
+       */
+
+      typedef function<void (Request &, Response &)> Listener;
+
+      /**
+       * HTTP parser settings
+       */
+
+      http_parser_settings settings;
+
+      /**
+       * HTTP event listener callback
+       */
+
+      Listener listener;
+
+      /**
+       * `Events' constructor
+       */
+
+      Events(Listener fn) {
+        // on request callback listener
+        listener = fn;
+
+        // http parser callback types
+        static function<int(http_parser *parser)> on_message_complete;
+        static function<int(http_parser *parser, const char *at, size_t len)> on_url;
+
+        // called once a connection has been made and the message is complete.
+        on_message_complete = [&](http_parser *parser) -> int {
+          Client *client = reinterpret_cast<Client*>(parser->data);
+          Request *req = new Request();
+          Response *res = new Response();
+
+          req->url = client->url;
+          req->method = client->method;
+
+          // Set on end callback
+          res->onEnd([&](string str) {
+              Client *client = reinterpret_cast<Client*>(parser->data);
+              // response buffer
+              uv_buf_t resbuf = {
+                .base = (char *) str.c_str(),
+                .len = str.size()
+              };
+
+              // @TODO - this forces us to opt out of streaming writes
+              // to the client as 'ended' responses are called with
+              // `res.end()' or `res << std::endl'
+              uv_write(&client->write_req, (uv_stream_t*) &client->handle, &resbuf, 1,
+                [](uv_write_t *req, int status) {
+                  if (!uv_is_closing((uv_handle_t*) req->handle)) {
+                    uv_close((uv_handle_t*) req->handle, free_client);
+                  }
+                });
+              });
+
+          // pass request to listener
+
+          listener(*req, *res);
+          return 0;
         };
 
-        //
-        // allocate memory and attempt to read.
-        //
-        uv_read_start(
-          (uv_stream_t*) &client->handle, 
-          [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-            *buf = uv_buf_init((char*) malloc(suggested_size), suggested_size); 
-          }, 
-          [](uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf) {
-            read(tcp, nread, buf);
-          }
-        );
-      };
+        // called after the url has been parsed.
+        settings.on_url =
+          [](http_parser *parser, const char *at, size_t len) -> int {
+            Client *client = static_cast<Client *>(parser->data);
+            if (at && client) { client->url = string(at, len); }
+            return 0;
+          };
 
-      uv_listen(
-        (uv_stream_t*) &server, 
-        MAX_WRITE_HANDLES, 
-        [](uv_stream_t *server, int status) {
-          on_connect(server, status);
-        }
-      );
+        // called when there are either fields or values in the request.
+        settings.on_header_field =
+          [](http_parser *parser, const char *at, size_t length) -> int {
+            return 0;
+          };
 
-      uv_run(UV_LOOP, UV_RUN_DEFAULT);
-      return 0;
-    }
+        // called when header value is given
+        settings.on_header_value =
+          [](http_parser *parser, const char *at, size_t length) -> int {
+            return 0;
+          };
 
-    Server(Listener listener) :
-      events(listener) {
+        // called once all fields and values have been parsed.
+        settings.on_headers_complete =
+          [](http_parser *parser) -> int {
+            Client *client = static_cast<Client *>(parser->data);
+            client->method = string(http_method_str((enum http_method) parser->method));
+            return 0;
+          };
 
-    }
-};
+        // called when there is a body for the request.
+        settings.on_body =
+          [](http_parser *parser, const char *at, size_t len) -> int {
+            Client *client = static_cast<Client *>(parser->data);
+            if (at && client) { client->body = string(at, len); }
+            return 0;
+          };
+
+        // called after all other events.
+        settings.on_message_complete =
+          [](http_parser *parser) -> int {
+            return on_message_complete(parser);
+          };
+      }
+  };
+
+  /**
+   * `Server' class
+   */
+
+  class Server {
+
+    protected:
+
+      /**
+       * Internal uv tcp socket
+       */
+
+      uv_tcp_t socket_;
+
+      /**
+       * Internal server events
+       */
+
+      Events events_;
+
+    public:
+
+      /**
+       * `Server' constructor
+       */
+
+      Server (Events::Listener listener) : events_(listener) {}
+
+      /**
+       * Called by the user when they want to start listening for
+       * connections. starts the main event loop, provides parser, etc.
+       */
+
+      int listen (const char *, int);
+  };
+
+  static void free_client (uv_handle_t *handle) {
+    auto *client = reinterpret_cast<Client*>(handle->data);
+    free(client);
+  }
+
 
 } // namespace http
 

@@ -25,8 +25,9 @@ int main() {
 # PERFORMANCE
 
 Just for fun. Without any real statistical significance, here are 
-some quick averages. Also, `libuv-http` uses about `400KB` of memory
-compared to Node.js' `10-15MB`.
+some quick averages from apache ab, run on an old macbook air. Also
+neat is that `libuv-http` uses about `400KB` of memory compared to 
+Node.js' `10-15MB`.
 
 ### libuv-http
 ```

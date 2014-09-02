@@ -1,5 +1,5 @@
 
-all: ./build
+all: ./build ./test
 
 ./deps/gyp:
 	git clone --depth 1 https://chromium.googlesource.com/external/gyp.git ./deps/gyp
@@ -12,6 +12,10 @@ all: ./build
 
 ./build: ./deps/gyp ./deps/libuv ./deps/http-parser
 	deps/gyp/gyp --depth=. -Goutput_dir=./out -Icommon.gypi --generator-output=./build -Dlibrary=static_library -Duv_library=static_library -f make -debug
+
+./test: test.cc
+	make -C ./build/ test
+	cp ./build/out/Release/test ./test
 
 distclean:
 	make clean

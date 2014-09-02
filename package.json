@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "repo": "https://github.com/hij1nx/libuv-http",
   "description": "A simple http server in c++ backed by libuv and http-parser.",
-  "keywords": ["http", "libuv", "http-parser"]
+  "keywords": ["http", "libuv", "http-parser"],
   "install": "make"
 }
 

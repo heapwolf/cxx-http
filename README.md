@@ -22,14 +22,10 @@ int main() {
 }
 ```
 
-# MOTIVATION
-
-A drop in replacement for bit.ly
-
 # PERFORMANCE
 
 Just for fun. Without any real statistical significance, here are 
-some quick averages. Also, Redirector uses about `400KB` of memory
+some quick averages. Also, `libuv-http` uses about `400KB` of memory
 compared to Node.js' `10-15MB`.
 
 ### Redirector

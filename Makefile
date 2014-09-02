@@ -1,17 +1,20 @@
 
-DEPS ?= $(shell ls -d deps/*)
+DEPS ?= gyp http-parser libuv
 
 all: build test
 
 .PHONY: deps
 deps: $(DEPS)
 
+gyp: deps/gyp
 deps/gyp:
 	git clone --depth 1 https://chromium.googlesource.com/external/gyp.git ./deps/gyp
 
+http-parser: deps/http-parser
 deps/http-parser:
 	git clone --depth 1 git://github.com/joyent/http-parser.git ./deps/http-parser
 
+libuv: deps/libuv
 deps/libuv:
 	git clone --depth 1 git://github.com/joyent/libuv.git ./deps/libuv
 

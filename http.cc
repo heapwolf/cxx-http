@@ -58,13 +58,15 @@ namespace http {
 
   int Server::listen (const char *ip, int port) {
     int cores = sysconf(_SC_NPROCESSORS_ONLN);
-    char cores_string[10];
+    std::stringstream cores_string;
+    //char cores_string[10];
     struct sockaddr_in address;
     static function<void(uv_stream_t *socket, int status)> on_connect;
     static function<void(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf)> read;
 
-    sprintf(cores_string, "%d", cores);
-    setenv("UV_THREADPOOL_SIZE", cores_string, 1);
+    cores_string << cores;
+    //sprintf(cores_string, "%d", cores);
+    setenv("UV_THREADPOOL_SIZE", cores_string.str().c_str(), 1);
 
     UV_LOOP = uv_default_loop();
     uv_tcp_init(UV_LOOP, &socket_);

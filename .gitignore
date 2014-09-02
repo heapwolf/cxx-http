@@ -1,5 +1,5 @@
 build
 util
 deps
-server
+test
 .DS_Store

@@ -1,6 +1,6 @@
 # SYNOPSIS
-
-A very fast, simple URL shortener service using leveldb and libuv.
+A simple http server backed by [`libuv`](https://github.com/joyent/libuv) 
+and [`http-parser`](https://github.com/joyent/http-parser).
 
 # EXAMPLE
 

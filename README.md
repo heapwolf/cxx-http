@@ -9,7 +9,7 @@ and [`http-parser`](https://github.com/joyent/http-parser).
 
 #include "http.h"
 
-int main (void) {
+int main () {
 
   http::Server server([](auto &req, auto &res) {
 
@@ -42,31 +42,18 @@ Requests per second:    16333.46 [#/sec] (mean)
 Requests per second:    3366.41 [#/sec] (mean)
 ```
 
+# COMPATIBILITY
+Runs on `OSX`, `Linux` and `Windows`.
+
 # DEVELOPMENT
 
-## REQUIREMENTS
-
-- clang >= 3.4
-- gyp
-- leveldb
-- libuv
-- http-parser
+## REQUIREMENTS (OSX, Linux)
+This project is made to work with C++11/14. So you'll either need
+fairly recent, stable releases of GCC (`~4.8.x`) or Clang (`~4.2.x`).
 
 ## REQUIREMENTS (Windows)
-
-```
-git clone https://github.com/joyent/libuv.git deps/libuv
-cd deps/libuv 
-git checkout v0.11.29
-cd..
-
-git clone https://github.com/joyent/http-parser.git deps/http-parser
-cd deps/http-parser  
-git checkout v2.3
-cd ..
-
-gyp --depth=. --generator-output=build -Duv_library=shared_library
-```
+Windows doesn't have a compatible make tool. So you'll have to run 
+this `build.bat` file to clone repos and run `gyp`.
 
 ## DEBUGGING
 

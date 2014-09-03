@@ -7,38 +7,21 @@ and [`http-parser`](https://github.com/joyent/http-parser).
 
 ```cpp
 
-#include <signal.h>
 #include "http.h"
 
-int
-main (void) {
+int main (void) {
 
-  signal(SIGPIPE, SIG_IGN);
-
-  http::Server server([](http::Request &req, http::Response &res) {
+  http::Server server([](auto &req, auto &res) {
 
     res.setStatus(200);
     res.setHeader("Content-Type", "text/plain");
     res.setHeader("Connection", "keep-alive");
 
-    // output
-    res.write("hi !\n");
-    // or
-    res << req.method;
-    res << " ";
-    res << req.url;
-
-    // end
-    res.end();
-    // or
-    //res << endl;
+    res << req.method << " " << req.url << endl;
 
   });
 
-  // listen on port 8000
   server.listen("0.0.0.0", 8000);
-
-  return 0;
 }
 ```
 
@@ -63,7 +46,7 @@ Requests per second:    3366.41 [#/sec] (mean)
 
 ## REQUIREMENTS
 
-- clang 3.5
+- clang >= 3.4
 - gyp
 - leveldb
 - libuv

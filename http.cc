@@ -145,16 +145,27 @@ namespace http {
    */
 
   int Server::listen (const char *ip, int port) {
+
+#ifdef _WIN32
+    SYSTEM_INFO sysinfo;
+    GetSystemInfo( &sysinfo );
+    int cores = sysinfo.dwNumberOfProcessors;
+#else
     int cores = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+
     std::stringstream cores_string;
-    //char cores_string[10];
+    cores_string << cores;
+
+#ifdef _WIN32
+    SetEnvironmentVariable("UV_THREADPOOL_SIZE", cores_string);
+#else
+    setenv("UV_THREADPOOL_SIZE", cores_string.str().c_str(), 1);
+#endif
+    
     struct sockaddr_in address;
     static function<void(uv_stream_t *socket, int status)> on_connect;
     static function<void(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf)> read;
-
-    cores_string << cores;
-    //sprintf(cores_string, "%d", cores);
-    setenv("UV_THREADPOOL_SIZE", cores_string.str().c_str(), 1);
 
     UV_LOOP = uv_default_loop();
     uv_tcp_init(UV_LOOP, &socket_);

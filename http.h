@@ -8,6 +8,13 @@
 #include <unistd.h>
 #include <functional>
 
+#include "uv.h"
+#include "http_parser.h"
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 extern "C" {
 #include "uv.h"
 #include "http_parser.h"
@@ -111,9 +118,7 @@ namespace http {
 
       // defer to write callback
       stream_->write_(out);
-
       return 0;
-
     }
   };
 

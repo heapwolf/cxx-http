@@ -4,11 +4,14 @@
 #include "uv.h"
 #include "http_parser.h"
 
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <string>
 #include <sstream>
 #include <iostream>
 #include <map>
+#include <functional>
 
 #define MAX_WRITE_HANDLES 1000
 
@@ -246,10 +249,20 @@ class Server {
     //
     int listen(const char *ip, int port) {
 
+#ifdef _WIN32
+      SYSTEM_INFO sysinfo;
+      GetSystemInfo( &sysinfo );
+      int cores = sysinfo.dwNumberOfProcessors;
+#else
       int cores = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
       char cores_string[10];
       sprintf(cores_string, "%d", cores);
+#ifdef _WIN32
+      SetEnvironmentVariable("UV_THREADPOOL_SIZE", cores_string);
+#else
       setenv("UV_THREADPOOL_SIZE", cores_string, 1);
+#endif
 
       UV_LOOP = uv_default_loop();
       uv_tcp_init(UV_LOOP, &server);

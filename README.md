@@ -53,7 +53,7 @@ Runs on `OSX`, `Linux` and `Windows`.
 This project is made to work with C++11/14. So you'll either need
 fairly recent, stable releases of GCC (`~4.8.x`) or Clang (`~4.2.x`).
 
-### Windows)
+### Windows
 Windows doesn't have a compatible make tool. So you'll have to run 
 this `build.bat` file to clone repos and run `gyp`.
 

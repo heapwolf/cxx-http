@@ -3,7 +3,7 @@
 
 using namespace http;
 
-int main (void) {
+int main () {
 
   Server server([](auto &req, auto &res) {
 

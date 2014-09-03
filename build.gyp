@@ -5,7 +5,7 @@
       'target_name': 'libuv-http',
       'type': 'none',
       'sources': [
-        'http.h',
+        'http.h', 'http.cc'
       ],
       'dependencies': [
         './deps/libuv/uv.gyp:libuv',
@@ -16,7 +16,7 @@
       'target_name': 'test',
       'type': 'executable',
       'sources': [
-        'test.cc',
+        'http.cc', 'test.cc',
       ],
       'dependencies': [
         './deps/libuv/uv.gyp:libuv',

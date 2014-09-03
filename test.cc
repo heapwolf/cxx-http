@@ -1,22 +1,36 @@
+
 #include <signal.h>
 #include "http.h"
 
-using namespace std;
-using namespace http;
-
-int main() {
+int
+main (void) {
 
   signal(SIGPIPE, SIG_IGN);
 
-  Server hs([](auto &req, auto &res) {
-    
+  http::Server server([](http::Request &req, http::Response &res) {
+
     res.setStatus(200);
     res.setHeader("Content-Type", "text/plain");
     res.setHeader("Connection", "keep-alive");
-    res << req.method << " " << req.url << endl;
- 
+
+    // output
+    res.write("hi !\n");
+    // or
+    res << req.method;
+    res << " ";
+    res << req.url;
+
+    // end
+    res.end();
+    // or
+    //res << std::endl;
+
+    exit(0);
   });
-  
-  hs.listen("0.0.0.0", 8000);
+
+  // listen on port 8000
+  server.listen("0.0.0.0", 8000);
+
+  return 0;
 }
 

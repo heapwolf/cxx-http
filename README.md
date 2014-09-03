@@ -49,6 +49,22 @@ Requests per second:    3366.41 [#/sec] (mean)
 - libuv
 - http-parser
 
+## REQUIREMENTS (Windows)
+
+```
+git clone https://github.com/joyent/libuv.git deps/libuv
+cd deps/libuv 
+git checkout v0.11.29
+cd..
+
+git clone https://github.com/joyent/http-parser.git deps/http-parser
+cd deps/http-parser  
+git checkout v2.3
+cd ..
+
+gyp --depth=. --generator-output=build -Duv_library=shared_library
+```
+
 ## DEBUGGING
 
 ### VALGRIND

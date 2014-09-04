@@ -21,7 +21,8 @@
       ],
       'dependencies': [
         './deps/libuv/uv.gyp:libuv',
-        './deps/http-parser/http_parser.gyp:http_parser'
+        './deps/http-parser/http_parser.gyp:http_parser',
+        'libuv-http'
       ],
     },
   ],

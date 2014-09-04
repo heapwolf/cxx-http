@@ -3,7 +3,8 @@
   'targets': [
     {
       'target_name': 'libuv-http',
-      'type': 'none',
+      'product_name': 'libuv-http',
+      'type': 'static_library',
       'sources': [
         'http.h', 'http.cc'
       ],

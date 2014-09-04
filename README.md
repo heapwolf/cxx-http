@@ -9,9 +9,11 @@ and [`http-parser`](https://github.com/joyent/http-parser).
 
 #include "http.h"
 
+using namespace http;
+
 int main () {
 
-  http::Server server([](auto &req, auto &res) {
+  Server server([](auto &req, auto &res) {
 
     res.setStatus(200);
     res.setHeader("Content-Type", "text/plain");

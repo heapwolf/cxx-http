@@ -101,8 +101,20 @@ namespace http {
   }
 
   void Response::writeOrEnd(string str, bool end) {
-  
-    writtenOrEnded = true;
+ 
+    if (!writtenOrEnded) {
+
+      stringstream ss;
+      ss << "HTTP/1.1 " << statusCode << " " << statusAdjective << "\r\n";
+
+      for (auto &header : headers) {
+        ss << header.first << ": " << header.second << "\r\n";
+      }
+
+      str = ss.str() + "\r\n\r\n" + str;
+      writtenOrEnded = true;
+    }
+
     // response buffer
     uv_buf_t resbuf = {
       .base = (char *) str.c_str(),
@@ -115,10 +127,10 @@ namespace http {
     client->writes.push_back(write_req);
 
     if (!end) {
-      uv_write(&client->writes.front(), (uv_stream_t*) &client->handle, &resbuf, 1, NULL); 
+      uv_write(&client->writes.back(), (uv_stream_t*) &client->handle, &resbuf, 1, NULL); 
     } else {
 
-      uv_write(&client->writes.front(), (uv_stream_t*) &client->handle, &resbuf, 1,
+      uv_write(&client->writes.back(), (uv_stream_t*) &client->handle, &resbuf, 1,
         [](uv_write_t *req, int status) {
           if (!uv_is_closing((uv_handle_t*) req->handle)) {
             uv_close((uv_handle_t*) req->handle, free_client);

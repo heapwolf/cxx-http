@@ -118,11 +118,8 @@ namespace http {
       uv_write(&client->writes.front(), (uv_stream_t*) &client->handle, &resbuf, 1, NULL); 
     } else {
 
-      static function<void(uv_write_t *req, int status)> after_write;
-
       uv_write(&client->writes.front(), (uv_stream_t*) &client->handle, &resbuf, 1,
         [](uv_write_t *req, int status) {
-          after_write(req, status);
           if (!uv_is_closing((uv_handle_t*) req->handle)) {
             uv_close((uv_handle_t*) req->handle, free_client);
           }

@@ -126,15 +126,16 @@ namespace http {
     };
 
     Client *client = static_cast<Client *>(this->parser.data);
+    auto id = write_count++;
 
     uv_write_t write_req;
-    this->writes.push_back(write_req);
-
+    this->writes.insert({ id, write_req });
+    
     if (!end) {
-      uv_write(&this->writes.back(), (uv_stream_t*) &client->handle, &resbuf, 1, NULL); 
+      uv_write(&this->writes.at(id), (uv_stream_t*) &client->handle, &resbuf, 1, NULL); 
     } else {
 
-      uv_write(&this->writes.back(), (uv_stream_t*) &client->handle, &resbuf, 1,
+      uv_write(&this->writes.at(id), (uv_stream_t*) &client->handle, &resbuf, 1,
         [](uv_write_t *req, int status) {
           if (!uv_is_closing((uv_handle_t*) req->handle)) {
             uv_close((uv_handle_t*) req->handle, free_client);

@@ -252,10 +252,11 @@ namespace http {
        */
 
       //virtual int sync (ostringstream &, size_t);
+      int write_count = 0;
 
     public:
 
-      vector<uv_write_t> writes;
+      map<int, uv_write_t> writes;
 
       http_parser parser;
       /**
@@ -310,7 +311,8 @@ namespace http {
        * `Response' destructor
        */
 
-      ~Response() { };
+      ~Response() { 
+      };
   };
 
   /**

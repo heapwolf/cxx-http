@@ -2,6 +2,7 @@
 #define HTTP_UV_H
 
 #include <map>
+#include <vector>
 #include <string>
 #include <sstream>
 #include <iostream>
@@ -212,7 +213,8 @@ namespace http {
        * uv write worker
        */
 
-      uv_write_t write_req;
+      vector<uv_write_t> writes;
+      //uv_write_t write_req;
   };
 
   /**

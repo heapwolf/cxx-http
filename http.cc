@@ -27,11 +27,6 @@ namespace http {
       req->url = client->url;
       req->method = client->method;
       res->parser = *parser;
-      //res->onEnd = []() {
-
-
-
-      //}
 
       listener(*req, *res);
       return 0;
@@ -92,16 +87,12 @@ namespace http {
 
   void Response::setStatus (int code) {
     
-    cout << "TRYING TO SET STATUS" << endl;
-    
     statusSet = true;
     if (writtenOrEnded) throw runtime_error("Can not set status after write");
     statusCode = code;
   }
 
   void Response::setStatus (int code, string ad) {
-
-    cout << "TRYING TO SET STATUS" << endl;
 
     statusSet = true;
     if (writtenOrEnded) throw runtime_error("Can not set status after write");
@@ -110,8 +101,6 @@ namespace http {
   }
 
   void Response::writeOrEnd(string str, bool end) {
-  
-    cout << "TRYING TO" << (end ? "END" : "WRITE") << endl;
   
     writtenOrEnded = true;
     // response buffer
@@ -122,13 +111,18 @@ namespace http {
 
     Client *client = static_cast<Client *>(this->parser.data);
 
+    uv_write_t write_req;
+    client->writes.push_back(write_req);
+
     if (!end) {
-      uv_write(&client->write_req, (uv_stream_t*) &client->handle, &resbuf, 1, NULL); 
+      uv_write(&client->writes.front(), (uv_stream_t*) &client->handle, &resbuf, 1, NULL); 
     } else {
 
-      uv_write(&client->write_req, (uv_stream_t*) &client->handle, &resbuf, 1,
-        [](uv_write_t *req, int status) {
+      static function<void(uv_write_t *req, int status)> after_write;
 
+      uv_write(&client->writes.front(), (uv_stream_t*) &client->handle, &resbuf, 1,
+        [](uv_write_t *req, int status) {
+          after_write(req, status);
           if (!uv_is_closing((uv_handle_t*) req->handle)) {
             uv_close((uv_handle_t*) req->handle, free_client);
           }

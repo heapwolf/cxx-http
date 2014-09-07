@@ -3,13 +3,14 @@
 
 namespace http {
 
-  /**
-   * `http::Response' implementation
-   */
+  using namespace std;
 
+  //
+  // Events.
+  //
   http_parser_settings settings;
 
-  Events::Events(Listener fn) {
+  ServerEvents::ServerEvents(Listener fn) {
     // on request callback listener
     listener = fn;
 
@@ -21,14 +22,14 @@ namespace http {
     on_message_complete = [&](http_parser *parser) -> int {
 
       Client *client = reinterpret_cast<Client*>(parser->data);
-      Request *req = new Request();
-      Response *res = new Response();
+      Request req;
+      Response res(listener);
 
-      req->url = client->url;
-      req->method = client->method;
-      res->parser = *parser;
+      req.url = client->url;
+      req.method = client->method;
+      res.parser = *parser;
 
-      listener(*req, *res);
+      listener(req, res);
       return 0;
     };
 
@@ -75,6 +76,9 @@ namespace http {
       };
   }
 
+  //
+  // Response.
+  //
   void Response::setHeader (const string key, const string val) {
     headersSet = true;
     if (writtenOrEnded) throw runtime_error("Can not set headers after write");
@@ -102,10 +106,6 @@ namespace http {
 
   void Response::writeOrEnd(string str, bool end) {
 
-    // @TODO
-    // Deterime if the response has ended and prevent further writes.
-    // if (ended) throw runtime_error("Can not write after end");
-
     if (!writtenOrEnded) {
 
       stringstream ss;
@@ -117,6 +117,7 @@ namespace http {
 
       str = ss.str() + "\r\n\r\n" + str;
       writtenOrEnded = true;
+      ss.str("");
     } 
 
     // response buffer
@@ -126,22 +127,24 @@ namespace http {
     };
 
     Client *client = static_cast<Client *>(this->parser.data);
+
     auto id = write_count++;
 
     uv_write_t write_req;
-    this->writes.insert({ id, write_req });
-    
-    if (!end) {
-      uv_write(&this->writes.at(id), (uv_stream_t*) &client->handle, &resbuf, 1, NULL); 
-    } else {
+    client->writes.insert({ id, write_req });
 
-      uv_write(&this->writes.at(id), (uv_stream_t*) &client->handle, &resbuf, 1,
+    if (end) {
+
+      uv_write(&client->writes.at(id), (uv_stream_t*) &client->handle, &resbuf, 1,
         [](uv_write_t *req, int status) {
           if (!uv_is_closing((uv_handle_t*) req->handle)) {
-            uv_close((uv_handle_t*) req->handle, free_client);
+            uv_close((uv_handle_t*) req->handle, Server::free_client);
           }
         }
       );
+    }
+    else {
+      uv_write(&client->writes.at(id), (uv_stream_t*) &client->handle, &resbuf, 1, NULL);
     }
   }
 
@@ -157,30 +160,36 @@ namespace http {
     this->writeOrEnd(string(""), true);
   }
 
-  /**
-   * `Server' implementation
-   */
+  //
+  // Server.
+  //
+  void Server::free_client (uv_handle_t *handle) {
+    auto *client = reinterpret_cast<Client*>(handle->data);
+    client->writes.clear();
+    free(client);
+  }
 
   int Server::listen (const char *ip, int port) {
 
-#ifdef _WIN32
-    SYSTEM_INFO sysinfo;
-    GetSystemInfo( &sysinfo );
-    int cores = sysinfo.dwNumberOfProcessors;
-#else
-    int cores = sysconf(_SC_NPROCESSORS_ONLN);
-#endif
+    #ifdef _WIN32
+      SYSTEM_INFO sysinfo;
+      GetSystemInfo( &sysinfo );
+      int cores = sysinfo.dwNumberOfProcessors;
+    #else
+      int cores = sysconf(_SC_NPROCESSORS_ONLN);
+    #endif
 
     std::stringstream cores_string;
     cores_string << cores;
 
-#ifdef _WIN32
-    SetEnvironmentVariable("UV_THREADPOOL_SIZE", cores_string);
-#else
-    setenv("UV_THREADPOOL_SIZE", cores_string.str().c_str(), 1);
-#endif
-    
+    #ifdef _WIN32
+      SetEnvironmentVariable("UV_THREADPOOL_SIZE", cores_string);
+    #else
+      setenv("UV_THREADPOOL_SIZE", cores_string.str().c_str(), 1);
+    #endif
+
     struct sockaddr_in address;
+
     static function<void(uv_stream_t *socket, int status)> on_connect;
     static function<void(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf)> read;
 
@@ -268,3 +277,4 @@ namespace http {
     return 0;
   }
 }
+

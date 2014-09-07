@@ -15,10 +15,10 @@
       ['OS == "mac"', {
         'defines': [ 'DARWIN' ]
       }],
-	  ['OS == "linux"', {
+    ['OS == "linux"', {
         'defines': [ 'LINUX' ]
       }],
-	  ['OS == "win"', {
+    ['OS == "win"', {
         'defines': [ 'WIN32' ]
       }],
       ['OS == "mac" and target_arch == "x64"', {
@@ -48,3 +48,4 @@
     }
   }
 }
+

@@ -98,7 +98,7 @@ namespace http {
      * failure.
      */
 
-    int sync () {
+    virtual int sync () {
       // create out stream
       string out = str();
 
@@ -106,9 +106,11 @@ namespace http {
       std::ostringstream buf;
 
       // sync
-      if (1 == stream_->sync(buf, out.size())) {
-        return 1;
-      }
+      //if (1 == stream_->sync(buf, out.size())) {
+      //  return 1;
+      //}
+
+      cout << "SYNCING" << endl;
 
       // concat
       buf << out;
@@ -116,11 +118,16 @@ namespace http {
       // write
       out = buf.str();
 
-      // defer to write callback
-      stream_->write_(out);
+      // defer to end callback
+      stream_->writeOrEnd(out, true);
       return 0;
     }
   };
+
+  //inline Buffer &operator << (Buffer &b) {
+  //  return d;
+  //}
+
 
   /**
    * `IStream' interface
@@ -178,6 +185,7 @@ namespace http {
        */
 
       map<const string, const string> headers;
+
   };
 
   /**
@@ -231,11 +239,18 @@ namespace http {
 
       stringstream stream_;
 
+
       /**
-       * Buffer write implementation
+       * Used to determine if a write has been made
+       * or if the end method has been called.
        */
 
-      Buffer<Response>::WriteCallback write_;
+      void writeOrEnd(string, bool);
+
+      bool writtenOrEnded = false;
+      bool headersSet = false;
+      bool statusSet = false;
+      bool contentLengthSet = false;
 
     protected:
 
@@ -243,28 +258,11 @@ namespace http {
        * Stream sync interface
        */
 
-      virtual int sync (ostringstream &, size_t);
+      //virtual int sync (ostringstream &, size_t);
 
     public:
 
-      /**
-       * HTTP response status code
-       */
-
-      int statusCode = 200;
-
-      /**
-       * HTTP response status adjective
-       */
-
-      string statusAdjective;
-
-      /**
-       * Key to value map of response headers
-       */
-
-      map<const string, const string> headers;
-
+      http_parser parser;
       /**
        * `Buffer::WriteCallback' detect predicate
        */
@@ -280,29 +278,26 @@ namespace http {
 
       /**
        * Sets the HTTP status code
-       *
-       * @TODO - handle `statusAdjective'
        */
+
+      string statusAdjective = "OK";
+      int statusCode = 200;
 
       void setStatus (int);
+      void setStatus (int, string);
 
       /**
-       * Sets a `Buffer::WriteCallback write_' routine for when
-       * the response has been sent
+       * Key to value map of response headers
        */
 
-      void onEnd (Buffer<Response>::WriteCallback);
+      map<const string, const string> headers;
 
       /**
        * Write to buffer stream
        */
 
       void write (string);
-
-      /**
-       * End write stream
-       */
-
+      void end (string);
       void end ();
 
       /**

@@ -19,34 +19,19 @@ namespace http {
 
     // called once a connection has been made and the message is complete.
     on_message_complete = [&](http_parser *parser) -> int {
+
       Client *client = reinterpret_cast<Client*>(parser->data);
       Request *req = new Request();
       Response *res = new Response();
 
       req->url = client->url;
       req->method = client->method;
+      res->parser = *parser;
+      //res->onEnd = []() {
 
-      // Set on end callback
-      res->onEnd([&](string str) {
-          Client *client = reinterpret_cast<Client*>(parser->data);
-          // response buffer
-          uv_buf_t resbuf = {
-            .base = (char *) str.c_str(),
-            .len = str.size()
-          };
 
-          // @TODO - this forces us to opt out of streaming writes
-          // to the client as 'ended' responses are called with
-          // `res.end()' or `res << std::endl'
-          uv_write(&client->write_req, (uv_stream_t*) &client->handle, &resbuf, 1,
-            [](uv_write_t *req, int status) {
-              if (!uv_is_closing((uv_handle_t*) req->handle)) {
-                uv_close((uv_handle_t*) req->handle, free_client);
-              }
-            });
-          });
 
-      // pass request to listener
+      //}
 
       listener(*req, *res);
       return 0;
@@ -95,49 +80,73 @@ namespace http {
       };
   }
 
-  void Response::onEnd (Buffer<Response>::WriteCallback cb) {
-    hasCallback = true;
-    write_ = cb;
-  }
-
-  void Response::write (string buf) {
-    *this << buf;
-  }
-
-  void Response::end () {
-    *this << std::endl;
-  }
-
   void Response::setHeader (const string key, const string val) {
+    headersSet = true;
+    if (writtenOrEnded) throw runtime_error("Can not set headers after write");
+
+    if (key == "Content-Length") {
+      contentLengthSet = true;
+    }
     headers.insert({ key, val });
   }
 
   void Response::setStatus (int code) {
+    
+    cout << "TRYING TO SET STATUS" << endl;
+    
+    statusSet = true;
+    if (writtenOrEnded) throw runtime_error("Can not set status after write");
     statusCode = code;
   }
 
-  int Response::sync (ostringstream &buf, size_t size) {
-    // fail if callback not set
-    if (!hasCallback) {
-      return 1;
+  void Response::setStatus (int code, string ad) {
+
+    cout << "TRYING TO SET STATUS" << endl;
+
+    statusSet = true;
+    if (writtenOrEnded) throw runtime_error("Can not set status after write");
+    statusCode = code;
+    statusAdjective = ad;
+  }
+
+  void Response::writeOrEnd(string str, bool end) {
+  
+    cout << "TRYING TO" << (end ? "END" : "WRITE") << endl;
+  
+    writtenOrEnded = true;
+    // response buffer
+    uv_buf_t resbuf = {
+      .base = (char *) str.c_str(),
+      .len = str.size()
+    };
+
+    Client *client = static_cast<Client *>(this->parser.data);
+
+    if (!end) {
+      uv_write(&client->write_req, (uv_stream_t*) &client->handle, &resbuf, 1, NULL); 
+    } else {
+
+      uv_write(&client->write_req, (uv_stream_t*) &client->handle, &resbuf, 1,
+        [](uv_write_t *req, int status) {
+
+          if (!uv_is_closing((uv_handle_t*) req->handle)) {
+            uv_close((uv_handle_t*) req->handle, free_client);
+          }
+        }
+      );
     }
+  }
 
-    // write status code and status adjective
-    // @TODO - write routine to determine status
-    // adjective. 'OK' is hardcoded here..
-    buf << "HTTP/1.1 " << statusCode << " OK\r\n";
+  void Response::write(string s) {
+    this->writeOrEnd(s, false);
+  }
 
-    // write headers
-    for (auto &h: headers) {
-      buf << h.first << ": " << h.second << "\r\n";
-    }
+  void Response::end(string s) {
+    this->writeOrEnd(s, true);
+  }
 
-    // set the content length and content
-    buf << "Content-Length: " << size;
-
-    // write body
-    buf << "\r\n\r\n";
-    return 0;
+  void Response::end() {
+    this->writeOrEnd(string(""), true);
   }
 
   /**

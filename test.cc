@@ -9,8 +9,17 @@ int main () {
 
     res.setStatus(200);
     res.setHeader("Content-Type", "text/plain");
-    res.setHeader("Connection", "keep-alive");
-    res << req.method << " " << req.url << endl;
+    //res.setHeader("Connection", "keep-alive");
+    //res.setHeader("Connection", "close");
+    res.setHeader("Transfer-Encoding", "chunked");
+
+    //res << "YUP" << "YUP";
+
+    //res.write("YES");
+    //res.write("YES");
+    res.write("YES");
+    res.end("OK");
+    //res << req.method << " " << req.url << endl;
 
   });
 

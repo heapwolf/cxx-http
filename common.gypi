@@ -14,8 +14,12 @@
     'conditions': [
       ['OS == "mac"', {
         'defines': [ 'DARWIN' ]
-      }, {
+      }],
+    ['OS == "linux"', {
         'defines': [ 'LINUX' ]
+      }],
+    ['OS == "win"', {
+        'defines': [ 'WIN32' ]
       }],
       ['OS == "mac" and target_arch == "x64"', {
         'xcode_settings': {
@@ -44,3 +48,4 @@
     }
   }
 }
+

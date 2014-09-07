@@ -106,6 +106,8 @@ namespace http {
 
   void Response::writeOrEnd(string str, bool end) {
 
+    if (ended) throw runtime_error("Can not write after end");
+
     if (!writtenOrEnded) {
 
       stringstream ss;
@@ -135,6 +137,8 @@ namespace http {
 
     if (end) {
 
+      ended = true;
+
       uv_write(&client->writes.at(id), (uv_stream_t*) &client->handle, &resbuf, 1,
         [](uv_write_t *req, int status) {
           if (!uv_is_closing((uv_handle_t*) req->handle)) {
@@ -157,7 +161,7 @@ namespace http {
   }
 
   void Response::end() {
-    this->writeOrEnd(string(""), true);
+    this->writeOrEnd("", true);
   }
 
   //

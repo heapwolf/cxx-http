@@ -58,7 +58,7 @@ template <class Type> class Buffer : public stringbuf {
     std::ostringstream buf;
     buf << out;
     out = buf.str();
-    stream->writeOrEnd(out, false);
+    stream->writeOrEnd(out, true);
     buf.flush();
     str("");
     return 0;

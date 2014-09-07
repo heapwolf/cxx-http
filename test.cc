@@ -10,8 +10,8 @@ int main () {
     res.setHeader("Content-Type", "text/plain");
     res.setHeader("Connection", "keep-alive");
    
+    res.end("ok"); 
     res << req.method << " " << req.url << endl;
- 
   });
 
   server.listen("0.0.0.0", 8000);

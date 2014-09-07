@@ -9,8 +9,7 @@ int main () {
     res.setStatus(200);
     res.setHeader("Content-Type", "text/plain");
     res.setHeader("Connection", "keep-alive");
-   
-    res.end("ok"); 
+
     res << req.method << " " << req.url << endl;
   });
 

@@ -101,7 +101,11 @@ namespace http {
   }
 
   void Response::writeOrEnd(string str, bool end) {
- 
+
+    // @TODO
+    // Deterime if the response has ended and prevent further writes.
+    // if (ended) throw runtime_error("Can not write after end");
+
     if (!writtenOrEnded) {
 
       stringstream ss;
@@ -113,7 +117,7 @@ namespace http {
 
       str = ss.str() + "\r\n\r\n" + str;
       writtenOrEnded = true;
-    }
+    } 
 
     // response buffer
     uv_buf_t resbuf = {
@@ -124,13 +128,13 @@ namespace http {
     Client *client = static_cast<Client *>(this->parser.data);
 
     uv_write_t write_req;
-    client->writes.push_back(write_req);
+    this->writes.push_back(write_req);
 
     if (!end) {
-      uv_write(&client->writes.back(), (uv_stream_t*) &client->handle, &resbuf, 1, NULL); 
+      uv_write(&this->writes.back(), (uv_stream_t*) &client->handle, &resbuf, 1, NULL); 
     } else {
 
-      uv_write(&client->writes.back(), (uv_stream_t*) &client->handle, &resbuf, 1,
+      uv_write(&this->writes.back(), (uv_stream_t*) &client->handle, &resbuf, 1,
         [](uv_write_t *req, int status) {
           if (!uv_is_closing((uv_handle_t*) req->handle)) {
             uv_close((uv_handle_t*) req->handle, free_client);

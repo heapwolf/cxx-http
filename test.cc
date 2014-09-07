@@ -13,13 +13,16 @@ int main () {
     //res.setHeader("Connection", "close");
     //res.setHeader("Transfer-Encoding", "chunked");
 
-    //res << "YUP" << "YUP";
 
-    res.write("YES");
-    res.write("YES");
-    res.write("YES");
-    res.end("OK");
     //res << req.method << " " << req.url << endl;
+
+    //res.write("YES");
+    //res.write("YES");
+    //res.write("YES");
+    //res << "end" << endl;
+    res.end("OK");
+
+    //res << "OK" <<  endl;
 
   });
 

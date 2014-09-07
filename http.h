@@ -106,13 +106,6 @@ namespace http {
       // write buffer stream
       std::ostringstream buf;
 
-      // sync
-      //if (1 == stream_->sync(buf, out.size())) {
-      //  return 1;
-      //}
-
-      cout << "SYNCING" << endl;
-
       // concat
       buf << out;
 
@@ -120,14 +113,13 @@ namespace http {
       out = buf.str();
 
       // defer to end callback
-      stream_->writeOrEnd(out, true);
+      stream_->writeOrEnd(out, false);
+      buf.flush();
+      str("");
       return 0;
     }
-  };
 
-  //inline Buffer &operator << (Buffer &b) {
-  //  return d;
-  //}
+  };
 
 
   /**
@@ -213,7 +205,6 @@ namespace http {
        * uv write worker
        */
 
-      vector<uv_write_t> writes;
       //uv_write_t write_req;
   };
 
@@ -241,7 +232,6 @@ namespace http {
 
       stringstream stream_;
 
-
       /**
        * Used to determine if a write has been made
        * or if the end method has been called.
@@ -250,6 +240,7 @@ namespace http {
       void writeOrEnd(string, bool);
 
       bool writtenOrEnded = false;
+      bool ended = false;
       bool headersSet = false;
       bool statusSet = false;
       bool contentLengthSet = false;
@@ -263,6 +254,8 @@ namespace http {
       //virtual int sync (ostringstream &, size_t);
 
     public:
+
+      vector<uv_write_t> writes;
 
       http_parser parser;
       /**
@@ -327,7 +320,7 @@ namespace http {
   class Events {
 
     public:
-
+ 
       /**
        * `Listener' callback
        */

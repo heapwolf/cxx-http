@@ -19,7 +19,7 @@ deps/libuv:
 	git clone --depth 1 git://github.com/joyent/libuv.git ./deps/libuv
 
 build: $(DEPS)
-	deps/gyp/gyp --depth=. -Goutput_dir=./out -Icommon.gypi --generator-output=./build -Dlibrary=static_library -Duv_library=static_library -f make -debug
+	deps/gyp/gyp --depth=. -Goutput_dir=./out -Icommon.gypi --generator-output=./build -Dlibrary=static_library -Duv_library=static_library -f make
 
 .PHONY: test
 test: test.cc

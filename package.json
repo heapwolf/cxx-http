@@ -1,7 +1,7 @@
 {
-  "name": "libuv-http",
+  "name": "nodeuv-http",
   "version": "0.1.0",
-  "repo": "hij1nx/libuv-http",
+  "repo": "hij1nx/nodeuv-http",
   "description": "A simple http server in c++ backed by libuv and http-parser.",
   "keywords": ["http", "libuv", "http-parser"],
   "src": ["http.h"],

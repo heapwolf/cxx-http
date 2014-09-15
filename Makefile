@@ -22,9 +22,11 @@ build: $(DEPS)
 	deps/gyp/gyp --depth=. -Goutput_dir=./out -Icommon.gypi --generator-output=./build -Dlibrary=static_library -Duv_library=static_library -f make
 
 .PHONY: test
-test: test.cc
-	make -C ./build/ test
-	cp ./build/out/Release/test ./test
+test: client.cc server.cc
+	make -C ./build/ client
+	make -C ./build/ server
+	cp ./build/out/Release/client ./client
+	cp ./build/out/Release/server ./server
 
 distclean:
 	make clean
@@ -32,5 +34,7 @@ distclean:
 
 clean:
 	rm -rf ./build/out/Release/obj.target/server/
+	rm -rf ./build/out/Release/obj.target/client/
 	rm -f ./build/out/Release/server
+	rm -f ./build/out/Release/client
 

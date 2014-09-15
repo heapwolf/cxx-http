@@ -14,10 +14,10 @@
       ],
     },
     {
-      'target_name': 'test',
+      'target_name': 'server',
       'type': 'executable',
       'sources': [
-        'http.cc', 'test.cc',
+        'http.cc', 'server.cc',
       ],
       'dependencies': [
         './deps/libuv/uv.gyp:libuv',
@@ -25,6 +25,18 @@
         'nodeuv-http'
       ],
     },
-  ],
+    {
+      'target_name': 'client',
+      'type': 'executable',
+      'sources': [
+        'http.cc', 'client.cc',
+      ],
+      'dependencies': [
+        './deps/libuv/uv.gyp:libuv',
+        './deps/http-parser/http_parser.gyp:http_parser',
+        'nodeuv-http'
+      ],
+    },
+ ],
 }
 

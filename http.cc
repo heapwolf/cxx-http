@@ -5,75 +5,68 @@ namespace http {
 
   using namespace std;
 
-  //
-  // Events.
-  //
-  http_parser_settings settings;
+  void free_context (uv_handle_t *handle) {
+    auto *context = reinterpret_cast<Context*>(handle->data);
+    context->writes.clear();
+    free(context);
+  }
 
-  ServerEvents::ServerEvents(Listener fn) {
-    // on request callback listener
-    listener = fn;
+  //
+  // Events
+  //
+  template <class T>
+  void attachEvents(T *instance) {
 
     // http parser callback types
     static function<int(http_parser *parser)> on_message_complete;
-    static function<int(http_parser *parser, const char *at, size_t len)> on_url;
 
     // called once a connection has been made and the message is complete.
     on_message_complete = [&](http_parser *parser) -> int {
-
-      Client *client = reinterpret_cast<Client*>(parser->data);
-      Request req;
-      Response res(listener);
-
-      req.url = client->url;
-      req.method = client->method;
-      res.parser = *parser;
-
-      listener(req, res);
-      return 0;
+      return instance->complete(parser);
     };
 
     // called after the url has been parsed.
-    settings.on_url =
+    instance->settings.on_url =
       [](http_parser *parser, const char *at, size_t len) -> int {
-        Client *client = static_cast<Client *>(parser->data);
-        if (at && client) { client->url = string(at, len); }
+        Context *context = static_cast<Context *>(parser->data);
+        if (at && context) { context->url = string(at, len); }
         return 0;
       };
 
     // called when there are either fields or values in the request.
-    settings.on_header_field =
+    instance->settings.on_header_field =
       [](http_parser *parser, const char *at, size_t length) -> int {
         return 0;
       };
 
     // called when header value is given
-    settings.on_header_value =
+    instance->settings.on_header_value =
       [](http_parser *parser, const char *at, size_t length) -> int {
         return 0;
       };
 
     // called once all fields and values have been parsed.
-    settings.on_headers_complete =
+    instance->settings.on_headers_complete =
       [](http_parser *parser) -> int {
-        Client *client = static_cast<Client *>(parser->data);
-        client->method = string(http_method_str((enum http_method) parser->method));
+        Context *context = static_cast<Context *>(parser->data);
+        context->method = string(http_method_str((enum http_method) parser->method));
         return 0;
       };
 
     // called when there is a body for the request.
-    settings.on_body =
+    instance->settings.on_body =
       [](http_parser *parser, const char *at, size_t len) -> int {
-        Client *client = static_cast<Client *>(parser->data);
-        if (at && client) { client->body = string(at, len); }
+        Context *context = static_cast<Context *>(parser->data);
+        if (at && context) { context->body = string(at, len); }
         return 0;
       };
 
     // called after all other events.
-    settings.on_message_complete =
+    instance->settings.on_message_complete =
       [](http_parser *parser) -> int {
         return on_message_complete(parser);
       };
+  
   }
 
   //
@@ -128,27 +121,27 @@ namespace http {
       .len = str.size()
     };
 
-    Client *client = static_cast<Client *>(this->parser.data);
+    Context *context = static_cast<Context *>(this->parser.data);
 
     auto id = write_count++;
 
     uv_write_t write_req;
-    client->writes.insert({ id, write_req });
+    context->writes.insert({ id, write_req });
 
     if (end) {
 
       ended = true;
 
-      uv_write(&client->writes.at(id), (uv_stream_t*) &client->handle, &resbuf, 1,
+      uv_write(&context->writes.at(id), (uv_stream_t*) &context->handle, &resbuf, 1,
         [](uv_write_t *req, int status) {
           if (!uv_is_closing((uv_handle_t*) req->handle)) {
-            uv_close((uv_handle_t*) req->handle, Server::free_client);
+            uv_close((uv_handle_t*) req->handle, free_context);
           }
         }
       );
     }
     else {
-      uv_write(&client->writes.at(id), (uv_stream_t*) &client->handle, &resbuf, 1, NULL);
+      uv_write(&context->writes.at(id), (uv_stream_t*) &context->handle, &resbuf, 1, NULL);
     }
   }
 
@@ -164,13 +157,51 @@ namespace http {
     this->writeOrEnd("", true);
   }
 
+
   //
-  // Server.
+  // Client
   //
-  void Server::free_client (uv_handle_t *handle) {
-    auto *client = reinterpret_cast<Client*>(handle->data);
-    client->writes.clear();
-    free(client);
+  Client::Client (string u, Listener fn) {
+    //url = u;
+    listener = fn;
+    attachEvents<Client>(this);
+  }
+
+  Client::Client (Client::Options o, Listener fn) {
+    opts = o;
+    listener = fn;
+    attachEvents<Client>(this);
+  }
+
+  int Client::complete(http_parser *parser) {
+    Context *context = reinterpret_cast<Context*>(parser->data);
+
+    Response res;
+    res.parser = *parser;
+
+    listener(res);
+    return 0;
+  }
+
+  //
+  // Server
+  //
+  Server::Server (Listener fn) {
+    listener = fn;
+    attachEvents<Server>(this);
+  }
+
+  int Server::complete (http_parser *parser) {
+    Context *context = reinterpret_cast<Context*>(parser->data);
+    Request req;
+    Response res;
+
+    req.url = context->url;
+    req.method = context->method;
+    res.parser = *parser;
+
+    listener(req, res);
+    return 0;
   }
 
   int Server::listen (const char *ip, int port) {
@@ -212,37 +243,37 @@ namespace http {
 
     // called once a connection is made.
     on_connect = [&](uv_stream_t *handle, int status) {
-      Client *client = new Client();
+      Context *context = new Context();
 
       // init tcp handle
-      uv_tcp_init(UV_LOOP, &client->handle);
+      uv_tcp_init(UV_LOOP, &context->handle);
 
       // init http parser
-      http_parser_init(&client->parser, HTTP_REQUEST);
+      http_parser_init(&context->parser, HTTP_REQUEST);
 
       // client reference for parser routines
-      client->parser.data = client;
+      context->parser.data = context;
 
       // client reference for handle data on requests
-      client->handle.data = client;
+      context->handle.data = context;
 
       // accept connection passing in refernce to the client handle
-      uv_accept(handle, (uv_stream_t*) &client->handle);
+      uv_accept(handle, (uv_stream_t*) &context->handle);
 
       // called for every read
       read = [&](uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf) {
         ssize_t parsed;
-        Client *client = static_cast<Client *>(tcp->data);
+        Context *context = static_cast<Context *>(tcp->data);
 
         if (nread >= 0) {
-          parsed = (ssize_t) http_parser_execute(&client->parser,
+          parsed = (ssize_t) http_parser_execute(&context->parser,
                                                  &settings,
                                                  buf->base,
                                                  nread);
 
           // close handle
           if (parsed < nread) {
-            uv_close((uv_handle_t*) &client->handle, free_client);
+            uv_close((uv_handle_t*) &context->handle, free_context);
           }
         } else {
           if (nread != UV_EOF) {
@@ -250,7 +281,7 @@ namespace http {
           }
 
           // close handle
-          uv_close((uv_handle_t*) &client->handle, free_client);
+          uv_close((uv_handle_t*) &context->handle, free_context);
         }
 
         // free request buffer data
@@ -258,7 +289,7 @@ namespace http {
       };
 
       // allocate memory and attempt to read.
-      uv_read_start((uv_stream_t*) &client->handle,
+      uv_read_start((uv_stream_t*) &context->handle,
           // allocator
           [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
             *buf = uv_buf_init((char*) malloc(suggested_size), suggested_size);

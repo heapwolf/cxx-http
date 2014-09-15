@@ -1,5 +1,5 @@
-#ifndef HTTP_UV_H
-#define HTTP_UV_H
+#ifndef NODEUV_HTTP_H
+#define NODEUV_HTTP_H
 
 #include <map>
 #include <vector>
@@ -38,12 +38,12 @@ template <class Type> class IStream;
 class Request;
 class Response;
 class Server;
-class Client;
-class ServerEvents;
-class ClientEvents;
+class Context;
 
+static void free_context (uv_handle_t *);
 
-template <class Type> class Buffer : public stringbuf {
+template <class Type> 
+class Buffer : public stringbuf {
 
   friend class Request;
   friend class Response;
@@ -66,7 +66,8 @@ template <class Type> class Buffer : public stringbuf {
 };
 
 
-template <class Type> class IStream : virtual public ostream {
+template <class Type> 
+class IStream : virtual public ostream {
 
   public:
     IStream () { };
@@ -86,27 +87,13 @@ class Request {
 };
 
 
-class ServerEvents {
-  public:
-
-    typedef function<void (
-      Request &req, 
-      Response &res)> Listener;
-
-    Listener listener;
-
-    ServerEvents(Listener fn);
-    ~ServerEvents() {}
-};
-
-
 class Response : public IStream<Response> {
 
   friend class Buffer<class Response>;
+  friend class Server;
 
   stringstream stream;
   Buffer<Response> buffer;
-  ServerEvents::Listener listener;
 
   void writeOrEnd(string, bool);
 
@@ -133,7 +120,7 @@ class Response : public IStream<Response> {
     void end (string);
     void end ();
 
-    Response(ServerEvents::Listener fn) :
+    Response() :
       IStream(), 
       ostream(&buffer), 
       buffer(stream) {
@@ -143,38 +130,93 @@ class Response : public IStream<Response> {
     }
 };
 
-/* inline Response &operator << (Response &res, string s) {
+/*
+  // @TODO
+  // Maybe have each op call write
+  //
+  inline Response &operator << (Response &res, string s) {
   res.write(s);
   return res;
 }*/
 
-class Client : public Request {
+
+class Context : public Request {
+
   public:
     map<int, uv_write_t> writes;
-    //uv_write_t write_req;
     uv_tcp_t handle;
     http_parser parser;
 };
 
-class Server {
 
+class Client {
+
+  template<typename Type>
+  friend void attachEvents(Type *instance);
   friend class Response;
 
   private:
+     typedef function<void (
+      Response &res)> Listener;
+
+    Listener listener;
+    http_parser_settings settings;
+    int complete(http_parser *parser); 
+    uv_tcp_t socket_;
 
   protected:
-    uv_tcp_t socket_;
-    ServerEvents events;
+    uv_connect_t connect_req;
+    uv_shutdown_t shutdown_req;
+    uv_write_t write_req;
+
+    struct Options {
+      string host;
+      int port;
+    };
+
+    Options opts;
 
   public:
-    static void free_client (uv_handle_t *);
-    Server (ServerEvents::Listener listener) :
-      events(listener) {}
+    uv_tcp_t handle;
+    http_parser parser;
+
+    Client(Options o, Listener listener);
+    Client(string u, Listener listener);
+    ~Client() {}
+};
+
+class Server {
+
+  template<typename Type>
+  friend void attachEvents(Type *instance);
+  friend class Response;
+
+  private:
+    typedef function<void (
+      Request &req, 
+      Response &res)> Listener;
+  
+    Listener listener;
+    http_parser_settings settings;
+    int complete(http_parser *parser); 
+    uv_tcp_t socket_;
+
+  public:
+    Server (Listener listener);
     int listen (const char *, int);
 };
 
 
 } // namespace http
 
+
 #endif
 
+//Client client("http://google.com", [](&res) {
+
+  
+
+//});
+
+// client.write("");
+// client.end();

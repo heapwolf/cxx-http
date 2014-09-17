@@ -128,12 +128,8 @@ namespace http {
       && headers["Transfer-Encoding"] == "chunked";
 
     if (isChunked) {
-
-      std::stringstream chunkspec;
-      chunkspec << std::hex << str.size();
-      std::string chunkheader(chunkspec.str());
-
-      ss << chunkheader << CRLF << str << CRLF;
+      ss << std::hex << str.size() 
+         << std::dec << CRLF << str << CRLF;
     }
     else {
       ss << str;

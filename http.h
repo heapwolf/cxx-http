@@ -36,7 +36,7 @@ class Response;
 class Server;
 class Context;
 
-static void free_context (uv_handle_t *);
+static void free_context (uv_handle_t*);
 
 template <class Type> 
 class Buffer : public stringbuf {
@@ -44,9 +44,9 @@ class Buffer : public stringbuf {
   friend class Request;
   friend class Response;
 
-  Type *stream;
+  Type* stream;
 
-  Buffer<Type> (ostream &str) {};
+  Buffer<Type> (ostream& str) {};
   ~Buffer () {};
   virtual int sync () {
 
@@ -103,7 +103,7 @@ class Response : public IStream<Response> {
   public:
  
     http_parser parser;
-    
+
     int statusCode = 200;
     string body = "";
     string statusAdjective = "OK";
@@ -151,18 +151,18 @@ class Context : public Request {
 class Client {
 
   template<typename Type>
-  friend void attachEvents(Type *instance);
+  friend void attachEvents(Type* instance);
   friend class Response;
 
   private:
-    uv_loop_t *UV_LOOP;
+    uv_loop_t* UV_LOOP;
     uv_tcp_t socket_;
     void connect();
-    void on_connect(uv_connect_t *req, int status);
-    int complete(http_parser *parser); 
+    void on_connect(uv_connect_t* req, int status);
+    int complete(http_parser* parser); 
 
     typedef function<void (
-      Response &res)> Listener;
+      Response& res)> Listener;
 
     Listener listener;
     http_parser_settings settings;
@@ -174,12 +174,13 @@ class Client {
     struct Options {
       string host;
       int port;
+      string method = "PUT";
+      string url = "/";
     };
 
     Options opts;
 
   public:
-
     Client(Options o, Listener listener);
     Client(string u, Listener listener);
     ~Client() {}
@@ -188,36 +189,26 @@ class Client {
 class Server {
 
   template<typename Type>
-  friend void attachEvents(Type *instance);
+  friend void attachEvents(Type* instance);
   friend class Response;
 
   private:
-    uv_loop_t *UV_LOOP;
+    uv_loop_t* UV_LOOP;
     typedef function<void (
-      Request &req, 
-      Response &res)> Listener;
+      Request& req, 
+      Response& res)> Listener;
   
     Listener listener;
     http_parser_settings settings;
-    int complete(http_parser *parser); 
+    int complete(http_parser* parser); 
     uv_tcp_t socket_;
 
   public:
     Server (Listener listener);
-    int listen (const char *, int);
+    int listen (const char*, int);
 };
-
 
 } // namespace http
 
-
 #endif
 
-//Client client("http://google.com", [](&res) {
-
-  
-
-//});
-
-// client.write("");
-// client.end();

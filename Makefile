@@ -1,5 +1,5 @@
 
-DEPS ?= gyp http-parser libuv
+DEPS ?= gyp nodeuv-uri http-parser libuv
 
 all: build test
 
@@ -9,6 +9,10 @@ deps: $(DEPS)
 gyp: deps/gyp
 deps/gyp:
 	git clone --depth 1 https://chromium.googlesource.com/external/gyp.git ./deps/gyp
+
+nodeuv-uri: deps/nodeuv-uri
+deps/nodeuv-uri:
+	git clone --depth 1 http://github.com/hij1nx/nodeuv-uri ./deps/nodeuv-uri
 
 http-parser: deps/http-parser
 deps/http-parser:

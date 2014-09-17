@@ -5,6 +5,7 @@ and [`http-parser`](https://github.com/joyent/http-parser).
 
 # EXAMPLE
 
+## SERVER
 ```cpp
 
 #include "http.h"
@@ -27,14 +28,30 @@ int main () {
 }
 ```
 
+## CLIENT
+```cpp
+
+#include "http.h"
+
+using namespace http;
+
+int main () {
+
+  Client client("http://google.com", [](auto &res) {
+    cout << res.body << endl;
+  });
+
+}
+```
+
 # PERFORMANCE
 
 Just for fun. Without any real statistical significance, here are
 some quick averages from apache ab, run on an old macbook air. Also
-neat is that `libuv-http` uses about `400KB` of memory compared to
-Node.js' `10-15MB`.
+neat is that `nodeuv-http` server uses about `400KB` of memory 
+(compared to Node.js' `10-15MB`).
 
-### libuv-http
+### nodeuv-http
 ```
 Requests per second:    16333.46 [#/sec] (mean)
 ```

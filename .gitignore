@@ -1,5 +1,6 @@
 build
 util
 deps
-test
+server
+client
 .DS_Store

@@ -7,10 +7,14 @@ int main () {
   Server server([](auto &req, auto &res) {
 
     res.setStatus(200);
-    res.setHeader("Content-Type", "text/plain");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("Content-Type", "text/plain");
+    res.setHeader("Transfer-Encoding", "chunked");
 
-    res << req.method << " " << req.url << endl;
+    //res.write("OK THANK A LOT");
+
+    //res << "OK: " << req.method << " " << req.url << endl;
+    res.end("OK");
   });
 
   server.listen("0.0.0.0", 8000);

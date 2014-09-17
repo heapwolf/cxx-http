@@ -8,6 +8,9 @@
       'sources': [
         'http.h', 'http.cc'
       ],
+      'include_dirs': [
+        './deps/nodeuv-uri',
+      ],
       'dependencies': [
         './deps/libuv/uv.gyp:libuv',
         './deps/http-parser/http_parser.gyp:http_parser'
@@ -19,6 +22,9 @@
       'sources': [
         'http.cc', 'server.cc',
       ],
+      'include_dirs': [
+        './deps/nodeuv-uri',
+      ],     
       'dependencies': [
         './deps/libuv/uv.gyp:libuv',
         './deps/http-parser/http_parser.gyp:http_parser',
@@ -30,6 +36,9 @@
       'type': 'executable',
       'sources': [
         'http.cc', 'client.cc',
+      ],
+      'include_dirs': [
+        './deps/nodeuv-uri',
       ],
       'dependencies': [
         './deps/libuv/uv.gyp:libuv',

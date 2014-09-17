@@ -10,6 +10,7 @@
 #include <functional>
 
 #include "uv.h"
+#include "uri.h"
 #include "http_parser.h"
 
 #ifndef _WIN32
@@ -22,11 +23,6 @@ extern "C" {
 }
 
 #define MAX_WRITE_HANDLES 1000
-
-#ifndef HTTP_UV_LOOP
-#define HTTP_UV_LOOP
-static uv_loop_t *UV_LOOP;
-#endif
 
 namespace http {
 
@@ -79,7 +75,7 @@ class Request {
     string url;
     string method;
     string status_code;
-    string body;
+    stringstream body;
     map<const string, const string> headers; 
 
     Request() {}
@@ -109,6 +105,7 @@ class Response : public IStream<Response> {
     http_parser parser;
     
     int statusCode = 200;
+    string body = "";
     string statusAdjective = "OK";
     map<const string, const string> headers;
 
@@ -145,6 +142,8 @@ class Context : public Request {
   public:
     map<int, uv_write_t> writes;
     uv_tcp_t handle;
+    uv_connect_t connect_req;
+    uv_write_t write_req;
     http_parser parser;
 };
 
@@ -156,18 +155,21 @@ class Client {
   friend class Response;
 
   private:
-     typedef function<void (
+    uv_loop_t *UV_LOOP;
+    uv_tcp_t socket_;
+    void connect();
+    void on_connect(uv_connect_t *req, int status);
+    int complete(http_parser *parser); 
+
+    typedef function<void (
       Response &res)> Listener;
 
     Listener listener;
     http_parser_settings settings;
-    int complete(http_parser *parser); 
-    uv_tcp_t socket_;
 
   protected:
-    uv_connect_t connect_req;
+    uv_getaddrinfo_t addr_req;
     uv_shutdown_t shutdown_req;
-    uv_write_t write_req;
 
     struct Options {
       string host;
@@ -177,8 +179,6 @@ class Client {
     Options opts;
 
   public:
-    uv_tcp_t handle;
-    http_parser parser;
 
     Client(Options o, Listener listener);
     Client(string u, Listener listener);
@@ -192,6 +192,7 @@ class Server {
   friend class Response;
 
   private:
+    uv_loop_t *UV_LOOP;
     typedef function<void (
       Request &req, 
       Response &res)> Listener;

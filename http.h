@@ -26,187 +26,193 @@ extern "C" {
 
 namespace http {
 
-using namespace std;
+  using namespace std;
 
-template <class Type> class Buffer;
-template <class Type> class IStream;
+  template <class Type> class Buffer;
+  template <class Type> class IStream;
 
-class Request;
-class Response;
-class Server;
-class Context;
+  class Request;
+  class Response;
+  class Server;
+  class Client;
+  class Context;
 
-static void free_context (uv_handle_t*);
+  extern const string CRLF;
+  extern void free_context (uv_handle_t*);
 
-template <class Type> 
-class Buffer : public stringbuf {
+  template <class Type> 
+  extern void attachEvents(Type* instance);
 
-  friend class Request;
-  friend class Response;
+  template <class Type> 
+  class Buffer : public stringbuf {
 
-  Type* stream;
+    friend class Request;
+    friend class Response;
 
-  Buffer<Type> (ostream& str) {};
-  ~Buffer () {};
-  virtual int sync () {
+    Type* stream;
 
-    string out = str();
-    std::ostringstream buf;
-    buf << out;
-    out = buf.str();
-    stream->writeOrEnd(out, true);
-    buf.flush();
-    str("");
-    return 0;
-  }
-};
+    Buffer<Type> (ostream& str) {};
+    ~Buffer () {};
+    virtual int sync () {
 
-
-template <class Type> 
-class IStream : virtual public ostream {
-
-  public:
-    IStream () { };
-};
-
-
-class Request {
-  public:
-    string url;
-    string method;
-    string status_code;
-    stringstream body;
-    map<const string, const string> headers; 
-
-    Request() {}
-    ~Request() {}
-};
-
-
-class Response : public IStream<Response> {
-
-  friend class Buffer<class Response>;
-  friend class Server;
-
-  stringstream stream;
-  Buffer<Response> buffer;
-
-  void writeOrEnd(string, bool);
-
-  int write_count = 0; 
-  bool writtenOrEnded = false;
-  bool ended = false;
-  bool headersSet = false;
-  bool statusSet = false;
-  bool contentLengthSet = false;
-
-  public:
- 
-    http_parser parser;
-
-    int statusCode = 200;
-    string body = "";
-    string statusAdjective = "OK";
-    map<const string, const string> headers;
-
-    void setHeader (const string, const string);
-    void setStatus (int);
-    void setStatus (int, string);
-    
-    void write (string);
-    void end (string);
-    void end ();
-
-    Response() :
-      IStream(), 
-      ostream(&buffer), 
-      buffer(stream) {
-        buffer.stream = this;
-      }
-    ~Response() {
+      string out = str();
+      std::ostringstream buf;
+      buf << out;
+      out = buf.str();
+      stream->writeOrEnd(out, true);
+      buf.flush();
+      str("");
+      return 0;
     }
-};
-
-/*
-  // @TODO
-  // Maybe have each op call write
-  //
-  inline Response &operator << (Response &res, string s) {
-  res.write(s);
-  return res;
-}*/
+  };
 
 
-class Context : public Request {
+  template <class Type> 
+  class IStream : virtual public ostream {
 
-  public:
-    map<int, uv_write_t> writes;
-    uv_tcp_t handle;
-    uv_connect_t connect_req;
-    uv_write_t write_req;
-    http_parser parser;
-};
+    public:
+      IStream () { };
+  };
 
 
-class Client {
+  class Request {
+    public:
+      string url;
+      string method;
+      string status_code;
+      stringstream body;
+      map<const string, const string> headers; 
 
-  template<typename Type>
-  friend void attachEvents(Type* instance);
-  friend class Response;
+      Request() {}
+      ~Request() {}
+  };
 
-  private:
-    uv_loop_t* UV_LOOP;
-    uv_tcp_t socket_;
-    void connect();
-    void on_connect(uv_connect_t* req, int status);
-    int complete(http_parser* parser); 
 
-    typedef function<void (
-      Response& res)> Listener;
+  class Response : public IStream<Response> {
 
-    Listener listener;
-    http_parser_settings settings;
+    friend class Buffer<class Response>;
+    friend class Server;
 
-  protected:
-    uv_getaddrinfo_t addr_req;
-    uv_shutdown_t shutdown_req;
+    stringstream stream;
+    Buffer<Response> buffer;
 
-    struct Options {
-      string host;
-      int port;
-      string method = "PUT";
-      string url = "/";
-    };
+    void writeOrEnd(string, bool);
 
-    Options opts;
+    int write_count = 0; 
+    bool writtenOrEnded = false;
+    bool ended = false;
+    bool headersSet = false;
+    bool statusSet = false;
+    bool contentLengthSet = false;
 
-  public:
-    Client(Options o, Listener listener);
-    Client(string u, Listener listener);
-    ~Client() {}
-};
+    public:
+   
+      http_parser parser;
 
-class Server {
+      int statusCode = 200;
+      string body = "";
+      string statusAdjective = "OK";
+      map<const string, const string> headers;
 
-  template<typename Type>
-  friend void attachEvents(Type* instance);
-  friend class Response;
+      void setHeader (const string, const string);
+      void setStatus (int);
+      void setStatus (int, string);
+      
+      void write (string);
+      void end (string);
+      void end ();
 
-  private:
-    uv_loop_t* UV_LOOP;
-    typedef function<void (
-      Request& req, 
-      Response& res)> Listener;
-  
-    Listener listener;
-    http_parser_settings settings;
-    int complete(http_parser* parser); 
-    uv_tcp_t socket_;
+      Response() :
+        IStream(), 
+        ostream(&buffer), 
+        buffer(stream) {
+          buffer.stream = this;
+        }
+      ~Response() {
+      }
+  };
 
-  public:
-    Server (Listener listener);
-    int listen (const char*, int);
-};
+  /*
+    // @TODO
+    // Maybe have each op call write
+    //
+    inline Response &operator << (Response &res, string s) {
+    res.write(s);
+    return res;
+  }*/
+
+
+  class Context : public Request {
+
+    public:
+      map<int, uv_write_t> writes;
+      uv_tcp_t handle;
+      uv_connect_t connect_req;
+      uv_write_t write_req;
+      http_parser parser;
+  };
+
+
+  class Client {
+
+    template<typename Type>
+    friend void attachEvents(Type* instance);
+    friend class Response;
+
+    private:
+      uv_loop_t* UV_LOOP;
+      uv_tcp_t socket_;
+      void connect();
+      void on_connect(uv_connect_t* req, int status);
+      int complete(http_parser* parser); 
+
+      typedef function<void (
+        Response& res)> Listener;
+
+      Listener listener;
+      http_parser_settings settings;
+
+    protected:
+      uv_getaddrinfo_t addr_req;
+      uv_shutdown_t shutdown_req;
+
+      struct Options {
+        string host;
+        int port;
+        string method = "PUT";
+        string url = "/";
+      };
+
+      Options opts;
+
+    public:
+      Client(Options o, Listener listener);
+      Client(string u, Listener listener);
+      ~Client() {}
+  };
+
+  class Server {
+
+    template<typename Type>
+    friend void attachEvents(Type* instance);
+    friend class Response;
+
+    private:
+      uv_loop_t* UV_LOOP;
+      typedef function<void (
+        Request& req, 
+        Response& res)> Listener;
+    
+      Listener listener;
+      http_parser_settings settings;
+      int complete(http_parser* parser); 
+      uv_tcp_t socket_;
+
+    public:
+      Server (Listener listener);
+      ~Server() {}
+      int listen (const char*, int);
+  };
 
 } // namespace http
 

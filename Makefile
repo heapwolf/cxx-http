@@ -32,13 +32,6 @@ test: client.cc server.cc
 	cp ./build/out/Release/client ./client
 	cp ./build/out/Release/server ./server
 
-distclean:
-	make clean
-	rm -rf ./build
-
 clean:
-	rm -rf ./build/out/Release/obj.target/server/
-	rm -rf ./build/out/Release/obj.target/client/
-	rm -f ./build/out/Release/server
-	rm -f ./build/out/Release/client
+	rm -rf build/
 

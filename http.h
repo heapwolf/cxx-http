@@ -45,7 +45,7 @@ namespace http {
 
   template <class Type> 
   class Buffer : public stringbuf {
-
+ 
     friend class Request;
     friend class Response;
 

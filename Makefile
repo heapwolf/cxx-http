@@ -26,7 +26,7 @@ build: $(DEPS)
 	deps/gyp/gyp --depth=. -Goutput_dir=./out -Icommon.gypi --generator-output=./build -Dlibrary=static_library -Duv_library=static_library -f make
 
 .PHONY: test
-test: client.cc server.cc
+test: examples/client.cc examples/server.cc
 	make -C ./build/ client
 	make -C ./build/ server
 	cp ./build/out/Release/client ./client

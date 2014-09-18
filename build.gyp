@@ -7,9 +7,9 @@
       'type': 'static_library',
       'sources': [
         'http.h', 
-        'http.cc',
-        'http-server.cc',
-        'http-client.cc',
+        'src/http.cc',
+        'src/http-server.cc',
+        'src/http-client.cc',
       ],
       'include_dirs': [
         './deps/nodeuv-uri',
@@ -24,9 +24,9 @@
       'type': 'executable',
       'sources': [
         'http.h', 
-        'http.cc',
-        'http-server.cc',
-        'server.cc',
+        'src/http.cc',
+        'src/http-server.cc',
+        'examples/server.cc',
       ],
       'include_dirs': [
         './deps/nodeuv-uri',
@@ -42,9 +42,9 @@
       'type': 'executable',
       'sources': [
         'http.h', 
-        'http.cc',
-        'http-client.cc',
-        'client.cc',
+        'src/http.cc',
+        'src/http-client.cc',
+        'examples/client.cc',
       ],
       'include_dirs': [
         './deps/nodeuv-uri',

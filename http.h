@@ -24,6 +24,12 @@ extern "C" {
 
 #define MAX_WRITE_HANDLES 1000
 
+#define ASSERT_STATUS(status, msg) \
+  if (status != 0) { \
+    std::cerr << msg << ": " << uv_err_name(status); \
+    exit(1); \
+  }
+
 namespace http {
 
   using namespace std;

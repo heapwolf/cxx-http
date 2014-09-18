@@ -19,6 +19,8 @@ namespace http {
 
   int Server::listen (const char* ip, int port) {
 
+    int status = 0;
+
     #ifdef _WIN32
       SYSTEM_INFO sysinfo;
       GetSystemInfo( &sysinfo );
@@ -51,8 +53,11 @@ namespace http {
     //
     //uv_tcp_keepalive(&socket_,1,60);
 
-    uv_ip4_addr(ip, port, &address);
-    uv_tcp_bind(&socket_, (const struct sockaddr*) &address, 0);
+    status = uv_ip4_addr(ip, port, &address);
+    ASSERT_STATUS(status, "Resolve Address");
+
+    status = uv_tcp_bind(&socket_, (const struct sockaddr*) &address, 0);
+    ASSERT_STATUS(status, "Bind");
 
     // called once a connection is made.
     on_connect = [&](uv_stream_t* handle, int status) {
@@ -114,11 +119,13 @@ namespace http {
           });
     };
 
-    uv_listen((uv_stream_t*) &socket_, MAX_WRITE_HANDLES,
+    status = uv_listen((uv_stream_t*) &socket_, MAX_WRITE_HANDLES,
         // listener
         [](uv_stream_t* socket, int status) {
           on_connect(socket, status);
         });
+
+    ASSERT_STATUS(status, "Listen");
 
     // init loop
     uv_run(UV_LOOP, UV_RUN_DEFAULT);

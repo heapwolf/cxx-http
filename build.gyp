@@ -25,7 +25,6 @@
       'sources': [
         'http.h', 
         'http.cc',
-        'http-client.cc',
         'http-server.cc',
         'server.cc',
       ],
@@ -44,7 +43,6 @@
       'sources': [
         'http.h', 
         'http.cc',
-        'http-server.cc',
         'http-client.cc',
         'client.cc',
       ],

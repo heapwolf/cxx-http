@@ -5,7 +5,7 @@ and [`http-parser`](https://github.com/joyent/http-parser).
 
 # EXAMPLE
 
-## SERVER
+## SERVER [`API DOC`](https://github.com/hij1nx/nodeuv-http/wiki/Server-Documentation)
 ```cpp
 
 #include "http.h"
@@ -28,7 +28,7 @@ int main () {
 }
 ```
 
-## CLIENT
+## CLIENT [`API DOC`](https://github.com/hij1nx/nodeuv-http/wiki/Client-Documentation)
 ```cpp
 
 #include "http.h"

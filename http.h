@@ -166,21 +166,23 @@ namespace http {
     friend class Response;
 
     private:
-      uv_loop_t* UV_LOOP;
-      uv_tcp_t socket_;
-      void connect();
-      void on_connect(uv_connect_t* req, int status);
-
       typedef function<void (
         Response& res)> Listener;
 
       Listener listener;
+      uv_loop_t* UV_LOOP;
+      uv_tcp_t socket_;
+      
+      void connect();
+      int complete(http_parser* parser, Listener fn); 
+      void on_connect(uv_connect_t* req, int status);
 
     protected:
       uv_getaddrinfo_t addr_req;
       uv_shutdown_t shutdown_req;
 
-      struct Options {
+    public:
+       struct Options {
         string host;
         int port;
         string method = "PUT";
@@ -189,8 +191,6 @@ namespace http {
 
       Options opts;
 
-    public:
-      int complete(http_parser* parser, Listener fn); 
       Client(Options o, Listener listener);
       Client(string u, Listener listener);
       ~Client() {}
@@ -203,17 +203,17 @@ namespace http {
     friend class Response;
 
     private:
-      uv_loop_t* UV_LOOP;
-
       typedef function<void (
         Request& req, 
         Response& res)> Listener;
-   
+ 
       Listener listener;
+      uv_loop_t* UV_LOOP;
       uv_tcp_t socket_;
+      
+      int complete(http_parser* parser, Listener fn);
 
     public:
-      int complete(http_parser* parser, Listener fn);
       Server (Listener listener);
       ~Server() {}
       int listen (const char*, int);

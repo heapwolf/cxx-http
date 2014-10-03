@@ -47,7 +47,7 @@ namespace http {
   extern void free_context (uv_handle_t*);
 
   template <class Type> 
-  extern void attachEvents(Type* instance);
+  extern void attachEvents(Type* instance, http_parser_settings& settings);
 
   template <class Type> 
   class Buffer : public stringbuf {
@@ -162,7 +162,7 @@ namespace http {
   class Client {
 
     template<typename Type>
-    friend void attachEvents(Type* instance);
+    friend void attachEvents(Type* instance, http_parser_settings& settings);
     friend class Response;
 
     private:
@@ -170,13 +170,11 @@ namespace http {
       uv_tcp_t socket_;
       void connect();
       void on_connect(uv_connect_t* req, int status);
-      int complete(http_parser* parser); 
 
       typedef function<void (
         Response& res)> Listener;
 
       Listener listener;
-      http_parser_settings settings;
 
     protected:
       uv_getaddrinfo_t addr_req;
@@ -192,6 +190,7 @@ namespace http {
       Options opts;
 
     public:
+      int complete(http_parser* parser, Listener fn); 
       Client(Options o, Listener listener);
       Client(string u, Listener listener);
       ~Client() {}
@@ -200,21 +199,21 @@ namespace http {
   class Server {
 
     template<typename Type>
-    friend void attachEvents(Type* instance);
+    friend void attachEvents(Type* instance, http_parser_settings& settings);
     friend class Response;
 
     private:
       uv_loop_t* UV_LOOP;
+
       typedef function<void (
         Request& req, 
         Response& res)> Listener;
-    
+   
       Listener listener;
-      http_parser_settings settings;
-      int complete(http_parser* parser); 
       uv_tcp_t socket_;
 
     public:
+      int complete(http_parser* parser, Listener fn);
       Server (Listener listener);
       ~Server() {}
       int listen (const char*, int);

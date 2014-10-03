@@ -7,29 +7,27 @@ namespace http {
   const string CRLF = "\r\n";
 
 
-  Server::Server (Listener fn) {
-    listener = fn;
-    attachEvents<Server>(this);
-  }
+  Server::Server (Listener fn) :
+    listener(fn) { 
+
+    }
 
 
-  Client::Client (string ustr, Listener fn) {
+  Client::Client (string ustr, Listener fn) :
+    listener(fn) {
+      auto u = uri::ParseHttpUrl(ustr);
+      opts.host = u.host;
 
-    auto u = uri::ParseHttpUrl(ustr);
-    opts.host = u.host;
-
-    listener = fn;
-    attachEvents<Client>(this);
-    connect();
-  }
+      connect();
+    }
 
 
-  Client::Client (Client::Options o, Listener fn) {
-    opts = o;
-    listener = fn;
-    attachEvents<Client>(this);
-    connect();
-  }
+  Client::Client (Client::Options o, Listener fn) :
+    listener(fn) {
+      opts = o;
+      listener = fn;
+      connect();
+    }
 
 
   void free_context (uv_handle_t* handle) {
@@ -38,22 +36,25 @@ namespace http {
     free(context);
   }
 
+
   //
   // Events
   //
   template <class Type>
-  void attachEvents(Type* instance) {
+  void attachEvents(Type* instance, http_parser_settings& settings) {
 
     // http parser callback types
     static function<int(http_parser* parser)> on_message_complete;
 
+    static auto callback = instance->listener;
     // called once a connection has been made and the message is complete.
     on_message_complete = [&](http_parser* parser) -> int {
-      return instance->complete(parser);
+      return instance->complete(parser, callback);
+      return 0;
     };
 
     // called after the url has been parsed.
-    instance->settings.on_url =
+    settings.on_url =
       [](http_parser* parser, const char* at, size_t len) -> int {
         Context* context = static_cast<Context*>(parser->data);
         if (at && context) { context->url = string(at, len); }
@@ -61,19 +62,19 @@ namespace http {
       };
 
     // called when there are either fields or values in the request.
-    instance->settings.on_header_field =
+    settings.on_header_field =
       [](http_parser* parser, const char* at, size_t length) -> int {
         return 0;
       };
 
     // called when header value is given
-    instance->settings.on_header_value =
+    settings.on_header_value =
       [](http_parser* parser, const char* at, size_t length) -> int {
         return 0;
       };
 
     // called once all fields and values have been parsed.
-    instance->settings.on_headers_complete =
+    settings.on_headers_complete =
       [](http_parser* parser) -> int {
         Context* context = static_cast<Context*>(parser->data);
         context->method = string(http_method_str((enum http_method) parser->method));
@@ -81,7 +82,7 @@ namespace http {
       };
 
     // called when there is a body for the request.
-    instance->settings.on_body =
+    settings.on_body =
       [](http_parser* parser, const char* at, size_t len) -> int {
         Context* context = static_cast<Context*>(parser->data);
         if (at && context && (int) len > -1) {
@@ -91,14 +92,15 @@ namespace http {
       };
 
     // called after all other events.
-    instance->settings.on_message_complete =
+    settings.on_message_complete =
       [](http_parser* parser) -> int {
         return on_message_complete(parser);
       };
   }
 
-  template void attachEvents<Client>(Client* instance);
-  template void attachEvents<Server>(Server* instance);
+  template void attachEvents<Client>(Client* instance, http_parser_settings& settings);
+  template void attachEvents<Server>(Server* instance, http_parser_settings& settings);
+
 
   //
   // Response.
@@ -113,12 +115,14 @@ namespace http {
     headers.insert({ key, val });
   }
 
+
   void Response::setStatus (int code) {
     
     statusSet = true;
     if (writtenOrEnded) throw runtime_error("Can not set status after write");
     statusCode = code;
   }
+
 
   void Response::setStatus (int code, string ad) {
 
@@ -127,6 +131,7 @@ namespace http {
     statusCode = code;
     statusAdjective = ad;
   }
+
 
   void Response::writeOrEnd(string str, bool end) {
 
@@ -192,13 +197,16 @@ namespace http {
     }
   }
 
+
   void Response::write(string s) {
     this->writeOrEnd(s, false);
   }
 
+
   void Response::end(string s) {
     this->writeOrEnd(s, true);
   }
+
 
   void Response::end() {
     this->writeOrEnd("", true);

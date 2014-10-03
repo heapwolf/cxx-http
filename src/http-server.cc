@@ -3,7 +3,7 @@
 namespace http {
 
 
-  int Server::complete (http_parser* parser) {
+  int Server::complete (http_parser* parser, Listener cb) {
     Context* context = reinterpret_cast<Context*>(parser->data);
     Request req;
     Response res;
@@ -11,13 +11,19 @@ namespace http {
     req.url = context->url;
     req.method = context->method;
     res.parser = *parser;
-
-    listener(req, res);
+    cb(req, res);
     return 0;
   }
 
 
   int Server::listen (const char* ip, int port) {
+
+    //
+    // parser settings needs to be static.
+    //
+    //
+    static http_parser_settings settings;
+    attachEvents(this, settings);
 
     int status = 0;
 

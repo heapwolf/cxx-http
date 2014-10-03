@@ -3,14 +3,14 @@
 namespace http {
 
 
-  int Client::complete(http_parser* parser) {
+  int Client::complete(http_parser* parser, Listener cb) {
     Context* context = reinterpret_cast<Context*>(parser->data);
 
     Response res;
     res.body = context->body.str();
     res.parser = *parser;
 
-    listener(res);
+    cb(res);
     return 0;
   }
 
@@ -18,6 +18,7 @@ namespace http {
   void Client::on_connect(uv_connect_t* req, int status) {
 
     Context* context = reinterpret_cast<Context*>(req->handle->data);
+    static http_parser_settings settings;
 
     if (status == -1) {
       // @TODO

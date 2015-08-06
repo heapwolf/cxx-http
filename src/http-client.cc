@@ -19,6 +19,7 @@ namespace http {
 
     Context* context = reinterpret_cast<Context*>(req->handle->data);
     static http_parser_settings settings;
+    attachEvents(this, settings);
 
     if (status == -1) {
       // @TODO

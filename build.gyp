@@ -8,6 +8,7 @@
       'sources': [
         'http.h', 
         'src/http.cc',
+        'deps/nodeuv-uri/uri.h',
         'src/http-server.cc',
         'src/http-client.cc',
       ],

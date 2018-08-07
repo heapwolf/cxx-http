@@ -5,18 +5,18 @@ namespace http {
 
   int Server::complete (http_parser* parser, Listener cb) {
     Context* context = reinterpret_cast<Context*>(parser->data);
-    Request req;
+    //Request req;
     Response res;
 
-    req.url = context->url;
-    req.method = context->method;
+    //req.url = context->url;
+    //req.method = context->method;
     res.parser = *parser;
-    cb(req, res);
+    cb(*context, res);
     return 0;
   }
 
 
-  int Server::listen (const char* ip, int port) {
+  int Server::listen (uv_loop_t * uv_loop, const char* ip, int port) {
 
     //
     // parser settings needs to be static.
@@ -39,7 +39,7 @@ namespace http {
     cores_string << cores;
 
     #ifdef _WIN32
-      SetEnvironmentVariable("UV_THREADPOOL_SIZE", cores_string);
+//      SetEnvironmentVariable("UV_THREADPOOL_SIZE", cores_string);
     #else
       setenv("UV_THREADPOOL_SIZE", cores_string.str().c_str(), 1);
     #endif
@@ -49,7 +49,7 @@ namespace http {
     static function<void(uv_stream_t* socket, int status)> on_connect;
     static function<void(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf)> read;
 
-    UV_LOOP = uv_default_loop();
+    UV_LOOP = uv_loop;
     uv_tcp_init(UV_LOOP, &socket_);
 
     //
@@ -134,9 +134,19 @@ namespace http {
     ASSERT_STATUS(status, "Listen");
 
     // init loop
-    uv_run(UV_LOOP, UV_RUN_DEFAULT);
+    //uv_run(UV_LOOP, UV_RUN_DEFAULT);
     return 0;
   }
+
+  int Server::listen(const char* ip, int port) {
+	  int retval = listen(uv_default_loop(), ip, port);
+	  if (retval == 0) {
+		  uv_run(UV_LOOP, UV_RUN_DEFAULT);
+	  }
+	  return retval;
+  }
+
+
 
 } // namespace http
 

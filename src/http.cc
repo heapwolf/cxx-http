@@ -29,6 +29,15 @@ namespace http {
       connect();
     }
 
+  Client::Client(Client::Options o, string rb, Listener fn, uv_loop_t* uv_loop_) :
+	  listener(fn) {
+	  opts = o;
+	  req_body = rb;
+	  listener = fn;
+	  uv_loop = uv_loop_;
+	  connect();
+  }
+
 
   void free_context (uv_handle_t* handle) {
     auto* context = reinterpret_cast<Context*>(handle->data);
@@ -57,7 +66,9 @@ namespace http {
     settings.on_url =
       [](http_parser* parser, const char* at, size_t len) -> int {
         Context* context = static_cast<Context*>(parser->data);
-        if (at && context) { context->url = string(at, len); }
+        if (at && context) { 
+			context->set_url(string(at, len)); 
+		}
         return 0;
       };
 
@@ -168,10 +179,9 @@ namespace http {
     str = ss.str();
 
     // response buffer
-    uv_buf_t resbuf = {
-      .base = (char*) str.c_str(),
-      .len = str.size()
-    };
+	uv_buf_t resbuf;
+	resbuf.base = (char*)str.c_str();
+	resbuf.len = str.size();
 
     Context* context = static_cast<Context*>(this->parser.data);
 
@@ -181,7 +191,6 @@ namespace http {
     context->writes.insert({ id, write_req });
 
     if (end) {
-
       ended = true;
 
       uv_write(&context->writes.at(id), (uv_stream_t*) &context->handle, &resbuf, 1,

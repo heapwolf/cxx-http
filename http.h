@@ -6,7 +6,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
-#include <unistd.h>
+//#include <unistd.h>
 #include <functional>
 
 #include "uv.h"
@@ -74,10 +74,11 @@ namespace http {
 
 
   template <class Type> 
-  class IStream : virtual public ostream {
+  class IStream : public std::ostream {
 
     public:
-      IStream () { };
+      IStream (stringbuf* sb) :
+		  ostream{ sb }  { };
   };
 
 
@@ -88,9 +89,18 @@ namespace http {
       string status_code;
       stringstream body;
       map<const string, const string> headers; 
+	  uri::url url_decoded;
 
-      Request() {}
+      Request()
+      {
+      }
       ~Request() {}
+
+	  void set_url(string src)
+      {
+		  url = src;
+		  url_decoded = uri::ParseHttpUrl(src);
+      }
   };
 
 
@@ -129,8 +139,7 @@ namespace http {
       void end ();
 
       Response() :
-        IStream(), 
-        ostream(&buffer), 
+        IStream(&buffer),
         buffer(stream) {
           buffer.stream = this;
         }
@@ -183,16 +192,34 @@ namespace http {
 
     public:
        struct Options {
-        string host;
-        int port;
-        string method = "PUT";
-        string url = "/";
+		   using header = pair<string, string>;
+		   using headers = vector<header>;
+
+		   Options() {}
+
+		   Options(string const& in_host,
+			   uint16_t in_port,
+			   string const& in_method,
+			   string const& in_url) :
+			   host(in_host),
+			   port(in_port),
+			   method(in_method),
+			   url(in_url) {}
+
+			string host;
+			int port;
+			string method = "PUT";
+			string url = "/";
+			headers http_headers;
       };
 
       Options opts;
+	  string req_body;
+	  uv_loop_t* uv_loop;
 
       Client(Options o, Listener listener);
-      Client(string u, Listener listener);
+	  Client(Options o, string req_body, Listener listener, uv_loop_t* uv_loop_);
+	  Client(string u, Listener listener);
       ~Client() {}
   };
 
@@ -202,11 +229,12 @@ namespace http {
     friend void attachEvents(Type* instance, http_parser_settings& settings);
     friend class Response;
 
-    private:
-      typedef function<void (
-        Request& req, 
-        Response& res)> Listener;
- 
+  public:
+	typedef function<void(
+		Request& req,
+		Response& res)> Listener;
+
+  private:
       Listener listener;
       uv_loop_t* UV_LOOP;
       uv_tcp_t socket_;
@@ -216,7 +244,8 @@ namespace http {
     public:
       Server (Listener listener);
       ~Server() {}
-      int listen (const char*, int);
+      int listen (uv_loop_t*,const char*, int);
+	  int listen (const char*, int);
   };
 
 } // namespace http

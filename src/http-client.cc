@@ -56,19 +56,36 @@ namespace http {
       free(buf->base);
     };
 
-    uv_buf_t reqbuf;
-    std::string reqstr =
-      opts.method + " " + opts.url + " HTTP/1.1" + CRLF +
-      //
-      // @TODO
-      // Add user's headers here
-      //
-      "Connection: keep-alive" + CRLF + CRLF;
+    uv_buf_t reqbuf[2];
+	uint32_t req_num_parts = 1;
+	std::string reqstr =
+		opts.method + " " + opts.url + " HTTP/1.1" + CRLF;
 
-    reqbuf.base = (char*) reqstr.c_str();
-    reqbuf.len = reqstr.size();
 
-    uv_read_start(
+	for (auto const& hdr: opts.http_headers)
+	{
+		reqstr += hdr.first + ": " + hdr.second + CRLF;
+	}
+	//reqstr += "Connection: keep-alive" + CRLF;
+	
+	if (req_body.length())
+	{
+		reqstr += "Content-Length: " + to_string(req_body.length()) + CRLF;
+	}
+	reqstr += CRLF;
+
+	reqbuf[0].base = (char*)reqstr.c_str();
+	reqbuf[0].len = reqstr.size();
+
+	if (req_body.length())
+	{
+		reqbuf[1].base = (char*)req_body.c_str();
+		reqbuf[1].len = req_body.size();
+
+		req_num_parts += 1;
+	}
+
+	uv_read_start(
       req->handle,
       [](uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
         *buf = uv_buf_init((char*) malloc(suggested_size), suggested_size);
@@ -80,9 +97,10 @@ namespace http {
     uv_write(
       &context->write_req,
       req->handle,
-      &reqbuf,
-      1,
+      reqbuf,
+      req_num_parts,
       NULL);
+
   }
 
   void Client::connect() {
@@ -112,11 +130,12 @@ namespace http {
 
       char addr[17] = { '\0' };
 
+
       uv_ip4_name((struct sockaddr_in*) res->ai_addr, addr, 16);
       uv_freeaddrinfo(res);
 
       struct sockaddr_in dest;
-      uv_ip4_addr(addr, 8000, &dest);
+      uv_ip4_addr(addr, opts.port, &dest);
 
       Context* context = new Context();
 
@@ -124,7 +143,7 @@ namespace http {
       http_parser_init(&context->parser, HTTP_RESPONSE);
       context->parser.data = context;
 
-      uv_tcp_init(UV_LOOP, &context->handle);
+      uv_tcp_init(uv_loop, &context->handle);
       //uv_tcp_keepalive(&context->handle, 1, 60);
 
       uv_tcp_connect(
@@ -140,8 +159,8 @@ namespace http {
       on_resolved(req, status, res);
     };
 
-    uv_getaddrinfo(UV_LOOP, &addr_req, cb, "localhost", "8000", &ai);
-    uv_run(UV_LOOP, UV_RUN_DEFAULT);
+    uv_getaddrinfo(uv_loop, &addr_req, cb, opts.host.c_str(), nullptr, &ai);
+//    uv_run(UV_LOOP, UV_RUN_DEFAULT);
   }
 
 } // namespace http

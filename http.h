@@ -183,9 +183,9 @@ namespace http {
 
     public:
        struct Options {
-        string host;
-        int port;
-        string method = "PUT";
+        string host = "localhost";
+        int port = 80;
+        string method = "GET";
         string url = "/";
       };
 

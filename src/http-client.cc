@@ -116,7 +116,7 @@ namespace http {
       uv_freeaddrinfo(res);
 
       struct sockaddr_in dest;
-      uv_ip4_addr(addr, 8000, &dest);
+      uv_ip4_addr(addr, opts.port, &dest);
 
       Context* context = new Context();
 
@@ -140,7 +140,7 @@ namespace http {
       on_resolved(req, status, res);
     };
 
-    uv_getaddrinfo(UV_LOOP, &addr_req, cb, "localhost", "8000", &ai);
+    uv_getaddrinfo(UV_LOOP, &addr_req, cb, opts.host.c_str(), to_string(opts.port).c_str(), &ai);
     uv_run(UV_LOOP, UV_RUN_DEFAULT);
   }
 

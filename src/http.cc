@@ -17,6 +17,12 @@ namespace http {
     listener(fn) {
       auto u = uri::ParseHttpUrl(ustr);
       opts.host = u.host;
+      if (u.port) {
+        opts.port = u.port;
+      }
+      if (!u.path.empty()) {
+        opts.url = u.path;
+      }
 
       connect();
     }

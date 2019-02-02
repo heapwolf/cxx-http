@@ -49,16 +49,6 @@ namespace http {
   template <class Type>
   void attachEvents(Type* instance, http_parser_settings& settings) {
 
-    // http parser callback types
-    static function<int(http_parser* parser)> on_message_complete;
-
-    static auto callback = instance->listener;
-    // called once a connection has been made and the message is complete.
-    on_message_complete = [&](http_parser* parser) -> int {
-      return instance->complete(parser, callback);
-      return 0;
-    };
-
     // called after the url has been parsed.
     settings.on_url =
       [](http_parser* parser, const char* at, size_t len) -> int {
@@ -100,7 +90,10 @@ namespace http {
     // called after all other events.
     settings.on_message_complete =
       [](http_parser* parser) -> int {
-        return on_message_complete(parser);
+        Context* context = static_cast<Context*>(parser->data);
+        Type* instance = static_cast<Type*>(context->instance);
+        instance->complete(parser, instance->listener);
+        return 0;
       };
   }
 

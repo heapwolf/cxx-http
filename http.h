@@ -156,6 +156,7 @@ namespace http {
       uv_connect_t connect_req;
       uv_write_t write_req;
       http_parser parser;
+      void* instance;
   };
 
 
@@ -172,10 +173,14 @@ namespace http {
       Listener listener;
       uv_loop_t* UV_LOOP;
       uv_tcp_t socket_;
+      static http_parser_settings parser_settings;
       
       void connect();
       int complete(http_parser* parser, Listener fn); 
-      void on_connect(uv_connect_t* req, int status);
+      static void on_resolved(uv_getaddrinfo_t* req, int status, struct addrinfo* res);
+      static void on_connect(uv_connect_t* req, int status);
+      static void read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf);
+      static void read_allocator(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
 
     protected:
       uv_getaddrinfo_t addr_req;
@@ -210,8 +215,12 @@ namespace http {
       Listener listener;
       uv_loop_t* UV_LOOP;
       uv_tcp_t socket_;
+      static http_parser_settings parser_settings;
       
       int complete(http_parser* parser, Listener fn);
+      static void on_connect(uv_stream_t* handle, int status);
+      static void read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf);
+      static void read_allocator(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
 
     public:
       Server (Listener listener);

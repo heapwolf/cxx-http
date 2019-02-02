@@ -1,9 +1,9 @@
 
 DEPS ?= gyp nodeuv-uri http-parser libuv
+BUILDTYPE ?= Release
 
-all: build test
+all: build
 
-.PHONY: deps
 deps: $(DEPS)
 
 gyp: deps/gyp
@@ -24,14 +24,18 @@ deps/libuv:
 
 build: $(DEPS)
 	deps/gyp/gyp --depth=. -Goutput_dir=./out -Icommon.gypi --generator-output=./build -Dlibrary=static_library -Duv_library=static_library -f make
+	make -C ./build/ nodeuv-http
 
-.PHONY: test
-test: examples/client.cc examples/server.cc
+examples: examples/client.cc examples/server.cc build
 	make -C ./build/ client
 	make -C ./build/ server
-	cp ./build/out/Release/client ./client
-	cp ./build/out/Release/server ./server
+	cp ./build/out/$(BUILDTYPE)/client ./client
+	cp ./build/out/$(BUILDTYPE)/server ./server
+
+distclean: clean
+	rm -rf deps/*
 
 clean:
-	rm -rf build/
+	rm -rf build/ client server
 
+.PHONY: examples clean build debug

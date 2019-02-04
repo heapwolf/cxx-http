@@ -9,6 +9,7 @@ namespace http {
 
     req.url = context->url;
     req.method = context->method;
+    req.headers = context->headers;
     res.parser = *parser;
     listener(req, res);
     return 0;

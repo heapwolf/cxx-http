@@ -82,11 +82,15 @@ namespace http {
     return 0;
   }
 
-  int parser_on_header_field (http_parser* parser, const char* at, size_t length) {
+  int parser_on_header_field(http_parser *parser, const char *at, size_t length) {
+    Context *context = static_cast<Context *>(parser->data);
+    context->next_header = string(at, length);
     return 0;
   }
 
-  int parser_on_header_value (http_parser* parser, const char* at, size_t length) {
+  int parser_on_header_value(http_parser *parser, const char *at, size_t length) {
+    Context *context = static_cast<Context *>(parser->data);
+    context->headers.insert({context->next_header, string(at, length)});
     return 0;
   }
 

@@ -101,7 +101,8 @@ namespace http {
       string method;
       string status_code;
       stringstream body;
-      map<const string, const string> headers; 
+      string next_header;
+      map<const string, const string> headers;
 
       Request() {}
       ~Request() {}

@@ -6,6 +6,36 @@ namespace http {
 
   const string CRLF = "\r\n";
 
+  void ClientOrServer::read_allocator(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
+    *buf = uv_buf_init((char*) malloc(suggested_size), suggested_size);
+  }
+
+  void ClientOrServer::read (uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
+
+    Context* context = static_cast<Context*>(tcp->data);
+    ClientOrServer* client = static_cast<ClientOrServer*>(context->instance);
+
+    if (nread >= -1) {
+      ssize_t parsed = (ssize_t) http_parser_execute(
+        &context->parser, &parser_settings, buf->base, nread);
+
+      if (parsed < nread) {
+        uv_close((uv_handle_t*) &context->handle, free_context);
+      }
+      if (parsed != nread) {
+        // @TODO
+        // Error Callback
+      }
+    }
+    else {
+      if (nread != UV_EOF) {
+        // @TODO - debug error
+      }
+      uv_close((uv_handle_t*) &context->handle, free_context);
+    }
+    free(buf->base);
+  }
+
 
   Server::Server (Listener fn) :
     listener(fn) { 
@@ -46,59 +76,40 @@ namespace http {
   //
   // Events
   //
-  template <class Type>
-  void attachEvents(Type* instance, http_parser_settings& settings) {
-
-    // called after the url has been parsed.
-    settings.on_url =
-      [](http_parser* parser, const char* at, size_t len) -> int {
-        Context* context = static_cast<Context*>(parser->data);
-        if (at && context) { context->url = string(at, len); }
-        return 0;
-      };
-
-    // called when there are either fields or values in the request.
-    settings.on_header_field =
-      [](http_parser* parser, const char* at, size_t length) -> int {
-        return 0;
-      };
-
-    // called when header value is given
-    settings.on_header_value =
-      [](http_parser* parser, const char* at, size_t length) -> int {
-        return 0;
-      };
-
-    // called once all fields and values have been parsed.
-    settings.on_headers_complete =
-      [](http_parser* parser) -> int {
-        Context* context = static_cast<Context*>(parser->data);
-        context->method = string(http_method_str((enum http_method) parser->method));
-        return 0;
-      };
-
-    // called when there is a body for the request.
-    settings.on_body =
-      [](http_parser* parser, const char* at, size_t len) -> int {
-        Context* context = static_cast<Context*>(parser->data);
-        if (at && context && (int) len > -1) {
-          context->body << string(at, len);
-        }
-        return 0;
-      };
-
-    // called after all other events.
-    settings.on_message_complete =
-      [](http_parser* parser) -> int {
-        Context* context = static_cast<Context*>(parser->data);
-        Type* instance = static_cast<Type*>(context->instance);
-        instance->complete(parser, instance->listener);
-        return 0;
-      };
+  int parser_on_url (http_parser* parser, const char* at, size_t len) {
+    Context* context = static_cast<Context*>(parser->data);
+    if (at && context) { context->url = string(at, len); }
+    return 0;
   }
 
-  template void attachEvents<Client>(Client* instance, http_parser_settings& settings);
-  template void attachEvents<Server>(Server* instance, http_parser_settings& settings);
+  int parser_on_header_field (http_parser* parser, const char* at, size_t length) {
+    return 0;
+  }
+
+  int parser_on_header_value (http_parser* parser, const char* at, size_t length) {
+    return 0;
+  }
+
+  int parser_on_headers_complete (http_parser* parser) {
+    Context* context = static_cast<Context*>(parser->data);
+    context->method = string(http_method_str((enum http_method) parser->method));
+    return 0;
+  }
+
+  int parser_on_body (http_parser* parser, const char* at, size_t len) {
+    Context* context = static_cast<Context*>(parser->data);
+    if (at && context && (int) len > -1) {
+      context->body << string(at, len);
+    }
+    return 0;
+  }
+
+  int parser_on_message_complete (http_parser* parser) {
+    Context* context = static_cast<Context*>(parser->data);
+    ClientOrServer* instance = static_cast<ClientOrServer*>(context->instance);
+    instance->complete(parser);
+    return 0;
+  }
 
 
   //

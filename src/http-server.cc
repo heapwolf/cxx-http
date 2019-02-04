@@ -2,9 +2,7 @@
 
 namespace http {
 
-  http_parser_settings Server::parser_settings;
-
-  int Server::complete (http_parser* parser, Listener cb) {
+  int Server::complete (http_parser* parser) {
     Context* context = reinterpret_cast<Context*>(parser->data);
     Request req;
     Response res;
@@ -12,40 +10,8 @@ namespace http {
     req.url = context->url;
     req.method = context->method;
     res.parser = *parser;
-    cb(req, res);
+    listener(req, res);
     return 0;
-  }
-
-  void Server::read_allocator(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
-    *buf = uv_buf_init((char*) malloc(suggested_size), suggested_size);
-  }
-
-  void Server::read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
-    ssize_t parsed;
-    Context* context = static_cast<Context*>(tcp->data);
-    Server* server = static_cast<Server*>(context->instance);
-
-    if (nread >= 0) {
-      parsed = (ssize_t) http_parser_execute(&context->parser,
-                                             &server->parser_settings,
-                                             buf->base,
-                                             nread);
-
-      // close handle
-      if (parsed < nread) {
-        uv_close((uv_handle_t*) &context->handle, free_context);
-      }
-    } else {
-      if (nread != UV_EOF) {
-        // @TODO - debug error
-      }
-
-      // close handle
-      uv_close((uv_handle_t*) &context->handle, free_context);
-    }
-
-    // free request buffer data
-    free(buf->base);
   }
 
   // called once a connection is made.
@@ -82,11 +48,7 @@ namespace http {
 
   int Server::listen (const char* ip, int port) {
 
-    //
-    // parser settings needs to be static.
-    //
-    //
-    attachEvents(this, parser_settings);
+    //attachEvents(parser_settings);
 
     int status = 0;
 

@@ -39,6 +39,7 @@ namespace http {
 
   class Request;
   class Response;
+  class ClientOrServer;
   class Server;
   class Client;
   class Context;
@@ -46,8 +47,21 @@ namespace http {
   extern const string CRLF;
   extern void free_context (uv_handle_t*);
 
-  template <class Type> 
-  extern void attachEvents(Type* instance, http_parser_settings& settings);
+  extern int parser_on_url (http_parser* parser, const char* at, size_t len);
+  extern int parser_on_header_field (http_parser* parser, const char* at, size_t length);
+  extern int parser_on_header_value (http_parser* parser, const char* at, size_t length);
+  extern int parser_on_headers_complete (http_parser* parser);
+  extern int parser_on_body (http_parser* parser, const char* at, size_t len);
+  extern int parser_on_message_complete (http_parser* parser);
+
+  static http_parser_settings parser_settings = {
+    .on_url = parser_on_url,
+    .on_header_field = parser_on_header_field,
+    .on_header_value = parser_on_header_value,
+    .on_headers_complete = parser_on_headers_complete,
+    .on_body = parser_on_body,
+    .on_message_complete = parser_on_message_complete,
+  };
 
   template <class Type> 
   class Buffer : public stringbuf {
@@ -159,11 +173,22 @@ namespace http {
       void* instance;
   };
 
+  class ClientOrServer {
+    protected:
+      uv_loop_t* UV_LOOP;
+      uv_tcp_t socket_;
+      static void read_allocator(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
+      static void read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf);
 
-  class Client {
+    public:
+      virtual int complete(http_parser* parser) = 0;
 
-    template<typename Type>
-    friend void attachEvents(Type* instance, http_parser_settings& settings);
+  };
+
+  //extern void attachEvents(http_parser_settings& settings);
+
+  class Client : public ClientOrServer {
+
     friend class Response;
 
     private:
@@ -171,16 +196,11 @@ namespace http {
         Response& res)> Listener;
 
       Listener listener;
-      uv_loop_t* UV_LOOP;
-      uv_tcp_t socket_;
-      static http_parser_settings parser_settings;
       
       void connect();
-      int complete(http_parser* parser, Listener fn); 
+      int complete(http_parser* parser);
       static void on_resolved(uv_getaddrinfo_t* req, int status, struct addrinfo* res);
       static void on_connect(uv_connect_t* req, int status);
-      static void read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf);
-      static void read_allocator(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
 
     protected:
       uv_getaddrinfo_t addr_req;
@@ -201,10 +221,8 @@ namespace http {
       ~Client() {}
   };
 
-  class Server {
+  class Server : public ClientOrServer {
 
-    template<typename Type>
-    friend void attachEvents(Type* instance, http_parser_settings& settings);
     friend class Response;
 
     private:
@@ -213,14 +231,9 @@ namespace http {
         Response& res)> Listener;
  
       Listener listener;
-      uv_loop_t* UV_LOOP;
-      uv_tcp_t socket_;
-      static http_parser_settings parser_settings;
       
-      int complete(http_parser* parser, Listener fn);
+      int complete(http_parser* parser);
       static void on_connect(uv_stream_t* handle, int status);
-      static void read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf);
-      static void read_allocator(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
 
     public:
       Server (Listener listener);

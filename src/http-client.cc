@@ -2,49 +2,16 @@
 
 namespace http {
 
-  http_parser_settings Client::parser_settings;
-
-  int Client::complete(http_parser* parser, Listener cb) {
+  int Client::complete(http_parser* parser) {
     Context* context = reinterpret_cast<Context*>(parser->data);
 
     Response res;
     res.body = context->body.str();
     res.parser = *parser;
 
-    cb(res);
+    listener(res);
     return 0;
   }
-
-  void Client::read_allocator(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
-    *buf = uv_buf_init((char*) malloc(suggested_size), suggested_size);
-  }
-
-  void Client::read (uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
-
-    Context* context = static_cast<Context*>(tcp->data);
-    Client* client = static_cast<Client*>(context->instance);
-
-    if (nread >= 0) {
-      auto parsed = (ssize_t) http_parser_execute(
-        &context->parser, &client->parser_settings, buf->base, nread);
-
-      if (parsed < nread) {
-        uv_close((uv_handle_t*) &context->handle, free_context);
-      }
-      if (parsed != nread) {
-        // @TODO
-        // Error Callback
-      }
-    }
-    else {
-      if (nread != UV_EOF) {
-        return; // maybe do something interesting here...
-      }
-      uv_close((uv_handle_t*) &context->handle, free_context);
-    }
-    free(buf->base);
-  }
-
 
   void Client::on_connect (uv_connect_t* req, int status) {
     // @TODO
@@ -53,7 +20,7 @@ namespace http {
     Context* context = reinterpret_cast<Context*>(req->handle->data);
     Client* client = static_cast<Client*>(context->instance);
 
-    attachEvents(client, parser_settings);
+    //attachEvents(parser_settings);
 
     if (status == -1) {
       // @TODO

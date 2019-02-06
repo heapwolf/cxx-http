@@ -54,17 +54,36 @@ namespace http {
         opts.url = u.path;
       }
 
-      connect();
+      connect(NULL);
     }
+  
+  Client::Client (uv_loop_t* loop, string ustr, Listener fn) :
+    listener(fn) {
+      auto u = uri::ParseHttpUrl(ustr);
+      opts.host = u.host;
+      if (u.port) {
+        opts.port = u.port;
+      }
+      if (!u.path.empty()) {
+        opts.url = u.path;
+      }
 
+      connect(loop);
+    }
 
   Client::Client (Client::Options o, Listener fn) :
     listener(fn) {
       opts = o;
       listener = fn;
-      connect();
+      connect(NULL);
     }
 
+  Client::Client (uv_loop_t* loop, Client::Options o, Listener fn) :
+    listener(fn) {
+      opts = o;
+      listener = fn;
+      connect(loop);
+    }
 
   void free_context (uv_handle_t* handle) {
     auto* context = reinterpret_cast<Context*>(handle->data);

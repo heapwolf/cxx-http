@@ -84,7 +84,7 @@ namespace http {
       Client::on_connect);
   };
 
-  void Client::connect() {
+  void Client::connect(uv_loop_t* loop) {
 
     struct addrinfo ai;
     ai.ai_family = PF_INET;
@@ -92,11 +92,20 @@ namespace http {
     ai.ai_protocol = IPPROTO_TCP;
     ai.ai_flags = 0;
 
-    UV_LOOP = uv_default_loop();
+    bool managesLoop;
+    if (loop) {
+      UV_LOOP = loop;
+      managesLoop = false;
+    } else {
+      UV_LOOP = uv_default_loop();
+      managesLoop = true;
+    }
 
     addr_req.data = this;
     uv_getaddrinfo(UV_LOOP, &addr_req, Client::on_resolved, opts.host.c_str(), to_string(opts.port).c_str(), &ai);
-    uv_run(UV_LOOP, UV_RUN_DEFAULT);
+    if (managesLoop) {
+      uv_run(UV_LOOP, UV_RUN_DEFAULT);
+    }
   }
 
 } // namespace http

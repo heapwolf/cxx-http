@@ -46,8 +46,15 @@ namespace http {
         Server::read);
   };
 
-
   int Server::listen (const char* ip, int port) {
+    uv_loop_t* loop = uv_default_loop();
+    int ret = listen(loop, ip, port);
+    // init loop
+    uv_run(UV_LOOP, UV_RUN_DEFAULT);
+    return ret;
+  }
+
+  int Server::listen (uv_loop_t* loop, const char* ip, int port) {
 
     //attachEvents(parser_settings);
 
@@ -72,7 +79,7 @@ namespace http {
 
     struct sockaddr_in address;
 
-    UV_LOOP = uv_default_loop();
+    UV_LOOP = loop;
     uv_tcp_init(UV_LOOP, &socket_);
 
     socket_.data = this;
@@ -96,8 +103,6 @@ namespace http {
 
     ASSERT_STATUS(status, "Listen");
 
-    // init loop
-    uv_run(UV_LOOP, UV_RUN_DEFAULT);
     return 0;
   }
 

@@ -198,7 +198,7 @@ namespace http {
 
       Listener listener;
       
-      void connect();
+      void connect(uv_loop_t* loop);
       int complete(http_parser* parser);
       static void on_resolved(uv_getaddrinfo_t* req, int status, struct addrinfo* res);
       static void on_connect(uv_connect_t* req, int status);
@@ -218,7 +218,9 @@ namespace http {
       Options opts;
 
       Client(Options o, Listener listener);
+      Client(uv_loop_t* loop, Options o, Listener listener);
       Client(string u, Listener listener);
+      Client(uv_loop_t* loop, string u, Listener listener);
       ~Client() {}
   };
 
@@ -240,6 +242,7 @@ namespace http {
       Server (Listener listener);
       ~Server() {}
       int listen (const char*, int);
+      int listen (uv_loop_t* loop, const char*, int);
   };
 
 } // namespace http
